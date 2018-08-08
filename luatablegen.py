@@ -87,7 +87,7 @@ class Argparser(object):
         parser.add_argument("--luaheader", type=str, help="path to lua header files")
         parser.add_argument("--dbg", action="store_true", help="debug", default=False)
         parser.add_argument("--singlefile", action="store_true", help="should all the generated code be added to a single file", default=False)
-        parser.add_argument("--makemacro", action="store_true", help="generate a makefile containing all objects in a macro to be included by abother makefile", default=False)
+        parser.add_argument("--makemacro", action="store_true", help="generate a makefile containing all objects in a macro to be included by another makefile", default=False)
         parser.add_argument("--outfile", type=str, help="name of the output file if signlefile is set, ignored otherwise")
         parser.add_argument("--headeraggr", type=str, help="header aggregate file name")
         parser.add_argument("--lualibpath", type=str, help="where the lua module file will be placed")
