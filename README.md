@@ -40,6 +40,10 @@ Each entry in the JSON file should have the following fields:<br/>
   --docpath DOCPATH     where the doc file will be placed
 ```
 
+## Projects
+The list of the projects that use luatablegen:<br/>
+* [bruiser](https://github.com/bloodstalker/mutator/tree/master/bruiser)<br/>
+
 ## TODO
 * fields should be able to reference each other.<br/>
 * add more options for the table fileds.<br/>
