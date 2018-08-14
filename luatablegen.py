@@ -8,6 +8,7 @@ import readline
 import signal
 import sys
 import datetime
+import xml.etree.ElementTree
 
 C_STRUCT = ['typedef struct XXX {', '}XXX;']
 HEADER_GUARD = ['\n#ifndef _XXX_H\n#define _XXX_H\n', '#endif //end of inclusion guard\n\n']
@@ -62,10 +63,91 @@ TABLE_REGISTER =  ['int XXX_register(lua_State* __ls) {\n',
   'return 1;\n}\n']
 SOURCE_FILE_NAME='XXX_luatablegen.c'
 HEADER_FILE_NAME='XXX_luatablegen.h'
+LUA_PUSH_TABLE = """
+int pushluatable_YYY(lua_State* ls, XXX array) {
+  lua_newtable(ls);
+  if (!lua_checkstack(ls, count+1)) {
+    printf("Not enough space on the lua stack.");
+    return -1;
+  }
+  for (int i = 0; i < count; ++i) {
+    lua_pushinteger(i+1);
+    push_self_ZZZ(ls, array[i]);
+    lua_settable(ls, -3);
+  }
+  return 0;
+}"""
+
+LUA_PUSH_TABLE_SIG = "int pushluatable_YYY(lua_State* ls, XXX array);\n"
+LUA_PUSH_TABLE_CALL = "pushluatable_YYY(lua_State* ls, WWW, XXX array);\n"
 
 LUA_LIB = ["local wasm = {}\n\n", "return wasm\n"]
 LUA_SETMETA_NEW = ["setmetatable(XXX, {__call =\n", "\tfunction(selfAAA)\n",
                    "\t\tlocal t = self.new(AAA)\n", "\t\treturn t\n\tend\n\t}\n)\n"]
+LUA_TO_GENERIC = "lua_to_YYY(__ls, ZZZ);\n"
+LUA_TO_GENERIC_DEF = "YYY lua_to_YYY(lua_State* ls, XXX array, ZZZ) {}\n"
+
+def type_resolver(elem, elem_list):
+    if "isaggregate" in elem.attrib:
+        type_str = elem.attrib["name"]
+    else:
+        type_str = elem.attrib["type"]
+    type_name = elem.attrib["name"]
+    if type_str == "int8":
+        return "int8_t"
+    elif type_str == "uint8":
+        return "uint8_t"
+    elif type_str == "int16":
+        return "int16_t"
+    elif type_str == "uint16":
+        return "uint16_t"
+    elif type_str == "int32":
+        return "int32_t"
+    elif type_str == "uint32":
+        return "uint32_t"
+    elif type_str == "int64":
+        return "int64_t"
+    elif type_str == "uint64":
+        return "uint64_t"
+    elif type_str == "int128":
+        return "int128_t"
+    elif type_str == "uint128":
+        return "uint128_t"
+    elif type_str == "float":
+        return "float"
+    elif type_str == "double":
+        return "double"
+    elif type_str == "bool":
+        return "uint8_t"
+    elif type_str == "uchar":
+        return "uint8_t"
+    elif type_str == "schar":
+        return "int8_t"
+    elif type_str == "string":
+        return "char*"
+    elif type_str == "FT::conditional":
+        return "void*"
+    elif type_str.find("self::") == 0:
+        for node in elem_list:
+            if elem.attrib["type"][6:] == node.tag:
+                return node.attrib["name"]
+    else: return type_str
+
+def get_def_node(type_str, elem_list):
+    for node in elem_list:
+        if type_str == node.attrib["name"]:
+            return node
+
+def get_elem_count(elem):
+    if "count" in elem.attrib:
+        try:
+            if str(int(elem.attrib["count"])) == elem.attrib["count"]:
+                return int(elem.attrib["count"])
+            else: return -1
+        except ValueError:
+            return -1
+    else:
+        return 1
 
 def SigHandler_SIGINT(signum, frame):
     print()
@@ -92,6 +174,8 @@ class Argparser(object):
         parser.add_argument("--headeraggr", type=str, help="header aggregate file name")
         parser.add_argument("--lualibpath", type=str, help="where the lua module file will be placed")
         parser.add_argument("--docpath", type=str, help="where the doc file will be placed")
+        parser.add_argument("--xml", type=str, help="same as --tbg but use an xml file instead")
+        parser.add_argument("--tbldefs", type=str, help="path to the definitions tablegen creates")
         self.args = parser.parse_args()
 
 class TbgParser(object):
@@ -100,6 +184,8 @@ class TbgParser(object):
         self.argparser = argparser
         self.time = datetime.datetime.now().isoformat()
         print(self.time)
+        self.def_elems = []
+        self.read_elems = []
 
     def begin(self, c_source, struct_name, h_filename, is_source):
         c_source.write("\n")
@@ -120,6 +206,48 @@ class TbgParser(object):
                 c_source.write(line)
             pre_file.close()
         c_source.write("\n")
+
+    def gen_lua_table_push_def(self, node):
+        type_name = type_resolver(child, self.def_elems+self.read_elems)
+        type_ref_node = get_def_node(type_name, self.def_elems+self.read_elems)
+        count = get_elem_count(node, self.def_elems+self.read_elems)
+        if count == 1:
+            pointer = ""
+        else:
+            pointer += "*"
+        yyy = node.atttrib["name"]
+        if type_ref_node:
+            pointer += "*"
+            xxx = type_ref_node.attrib["name"]
+            zzz = "push_" + type_ref_node.attrib["name"]
+        else:
+            xxx = node.attrib["name"]
+            zzz = "lua_push" + node.attrib["luatype"]
+        return LUA_PUSH_TABLE.replace("XXX", xxx+pointer).replace("YYY", yyy).replace("ZZZ", zzz)
+
+    def gen_lua_table_push_call(self, node, arg_pos):
+        type_name = type_resolver(node, self.def_elems+self.read_elems)
+        type_ref_node = get_def_node(type_name, self.def_elems+self.read_elems)
+        count = get_elem_count(node)
+        pointer = ""
+        if count == 1:
+            pointer = ""
+        else:
+            pointer += "*"
+        yyy = node.attrib["name"]
+        if type_ref_node:
+            pointer += "*"
+            xxx = type_ref_node.attrib["name"]
+            zzz = "push_" + type_ref_node.attrib["name"]
+        else:
+            xxx = node.attrib["name"]
+            zzz = "lua_push" + node.attrib["luatype"]
+        return [type_resolver(node, self.elems) + pointer + node.attrib["name"], LUA_PUSH_TABLE_CALL.replace("XXX", xxx+pointer).replace("YYY", yyy).replace("WWW", repr(arg_pos))]
+
+    def gen_luato_generic(self, struct_name, field_name, arg_pos):
+        parent = get_def_node(struct_name, self.elems)
+        child = get_def_node(field_name, self.elems)
+        return LUA_TO_GENERIC.replace("YYY", struct_name + "_" + field_name).replace("ZZZ", repr(arg_pos))
 
     def struct(self, c_source, field_names, field_types, struct_name):
         c_source.write("typedef struct {\n")
@@ -143,6 +271,45 @@ class TbgParser(object):
             c_source.write(line.replace("XXX", struct_name))
         c_source.write("\n")
 
+    def read_xml(self):
+        tree = xml.etree.ElementTree.parse(self.argparser.args.xml)
+        root = tree.getroot()
+        read_tree = xml.etree.ElementTree.Element("read")
+        def_tree = xml.etree.ElementTree.Element("def")
+        for child in root:
+            if child.tag == "Read":
+                read_tree = child
+            if child.tag == "Definition":
+                def_tree = child
+        for child in read_tree:
+            self.read_elems.append(child)
+        for child in def_tree:
+            self.def_elems.append(child)
+        read_iter = read_tree.iter(tag=None)
+        def_iter = def_tree.iter(tag=None)
+        self.read_iter = read_iter
+        self.def_iter = def_iter
+        self.struct_names = []
+        self.lua_types = []
+        lua_type = []
+        self.field_names = []
+        field_name = []
+        self.field_types = []
+        field_type = []
+        for node in self.read_elems+self.def_elems:
+            self.struct_names.append(node.attrib["name"])
+            for child in node:
+                field_name.append(child.attrib["name"])
+                field_type.append(child.attrib["type"])
+                lua_type.append(child.attrib["luatype"])
+            self.field_types.append(field_type)
+            field_type = []
+            self.field_names.append(field_name)
+            field_name = []
+            self.lua_types.append(lua_type)
+            lua_type = []
+        self.elems = self.def_elems + self.read_elems
+
     def push_args(self, c_source, struct_name, field_names, lua_types):
         dummy = str()
         c_source.write(PUSH_ARGS[0].replace("XXX", struct_name))
@@ -153,6 +320,13 @@ class TbgParser(object):
             elif lua_type == "number": dummy = "\tlua_pushnumber(__ls, _st->"+field_name+");\n"
             elif lua_type == "string": dummy = "\tlua_pushstring(__ls, _st->"+field_name+");\n"
             elif lua_type == "boolean": dummy = "\tlua_pushboolean(__ls, _st->"+field_name+");\n"
+            elif lua_type == "table":
+                parent = get_def_node(struct_name, self.elems)
+                child = get_def_node(field_name, self.elems)
+                if not child:
+                    for kid in parent:
+                        if kid.attrib["name"] == field_name: child = kid
+                dummy = "\tpushluatable_" + type_resolver(child, self.elems) +"(__ls, _st->"+field_name+");\n"
             else:
                 print("bad lua_type entry in the json file")
                 sys.exit(1)
@@ -172,6 +346,15 @@ class TbgParser(object):
             elif lua_type == "number": pass
             elif lua_type == "string":dummy = "\t"+field_type +" "+field_name+" = "+"lua_tostring(__ls,"+repr(rev_counter)+");\n"
             elif lua_type == "boolean": pass
+            elif lua_type == "table":
+                parent = get_def_node(struct_name, self.elems)
+                child = get_def_node(field_name, self.elems)
+                if not child:
+                    for child in parent:
+                        if child.attrib["name"] == field_name: child = child
+                temp = self.gen_lua_table_push_call(child, rev_counter)
+                temp2 = self.gen_luato_generic(struct_name, field_name, rev_counter)
+                dummy = temp[0]+"=" + temp2
             else:
                 print("bad lua_type entry in the json file")
                 sys.exit(1)
@@ -195,6 +378,13 @@ class TbgParser(object):
             elif lua_type == "number": dummy = "\tlua_pushnumber(__ls, dummy->"+field_name+");\n"
             elif lua_type == "string": dummy = "\tlua_pushstring(__ls, dummy->"+field_name+");\n"
             elif lua_type == "boolean": dummy = "\tlua_pushboolean(__ls, dummy->"+field_name+");\n"
+            elif lua_type == "table":
+                parent = get_def_node(struct_name, self.elems)
+                child = get_def_node(field_name, self.elems)
+                if not child:
+                    for kid in parent:
+                        if kid.attrib["name"] == field_name: child = kid
+                dummy = "\tpushluatable_" + type_resolver(child, self.elems) +"(__ls, _st->"+field_name+");\n"
             else:
                 print("bad lua_type entry in the json file")
                 sys.exit(1)
@@ -213,6 +403,7 @@ class TbgParser(object):
             elif lua_type == "number": dummy ="\tdummy->" + field_name + " = " + "luaL_checknumber(__ls, 2);\n"
             elif lua_type == "string": dummy ="\tdummy->" + field_name + " = " + "luaL_checkstring(__ls, 2);\n"
             elif lua_type == "boolean": pass
+            elif lua_type == "table": dummy = "\t;\n"
             else:
                 print("bad lua_type entry in the json file")
                 sys.exit(1)
@@ -293,7 +484,7 @@ class TbgParser(object):
             field_names = v['field_name']
             field_types = v['field_type']
             lua_types = v['lua_type']
-            methods = v['methods']
+            #methods = v['methods']
             l_source.write(LUA_SETMETA_NEW[0].replace("XXX", struct_name))
             arg_list_str = str()
             for i in range(0, len(field_names)):
@@ -307,20 +498,52 @@ class TbgParser(object):
         l_source.write(LUA_LIB[1])
 
     def run(self):
+        self.read_xml()
         header_aggr_list = []
         table_reg_list = []
+        # generating the tbldef files
+        tbl_source = open(self.argparser.args.tbldefs + "/tabledefs.c", "w")
+        tbl_header = open(self.argparser.args.tbldefs + "/tabledefs.h", "w")
+        tbl_tag_list = []
+        for elem in self.elems:
+            for node in elem:
+                type_name = type_resolver(node, self.def_elems+self.read_elems)
+                type_ref_node = get_def_node(type_name, self.def_elems+self.read_elems)
+                if type_ref_node and node.tag not in tbl_tag_list:
+                    tbl_tag_list.append(node.tag)
+                    count = get_elem_count(node)
+                    pointer = ""
+                    if count == 1:
+                        pointer = ""
+                    else:
+                        pointer += "*"
+                    yyy = node.attrib["name"]
+                    if type_ref_node:
+                        pointer += "*"
+                        xxx = type_ref_node.attrib["name"]
+                        zzz = "push_" + type_ref_node.attrib["name"]
+                    else:
+                        xxx = node.attrib["name"]
+                        zzz = "lua_push" + node.attrib["luatype"]
+                    tbl_source.write(LUA_PUSH_TABLE.replace("XXX", xxx+pointer).replace("YYY", xxx))
+                    tbl_header.write(LUA_PUSH_TABLE_SIG.replace("XXX", xxx+pointer).replace("YYY", xxx))
+        #end of tadldef
+
         if self.argparser.args.singlefile:
             c_source = open(self.argparser.args.outfile, "w")
         if self.argparser.args.docpath:
             d_source = open(self.argparser.args.docpath, "w")
             d_source.write("The lazy constructors are inside wasm.lua.\n")
             d_source.write("```lua\nlocal wasm = require(\"wasm\")\n```\n")
-        for k, v in self.tbg_file.items():
+        #for k, v in self.tbg_file.items():
+        for struct_name, field_names, field_types, lua_types in zip(self.struct_names, self.field_names, self.field_types, self.lua_types):
+            '''
             struct_name = k
             field_names = v['field_name']
             field_types = v['field_type']
             lua_types = v['lua_type']
             methods = v['methods']
+            '''
             if not self.argparser.args.singlefile:
                 c_filename = struct_name + "_tablegen.c"
                 h_filename = struct_name + "_tablegen.h"
