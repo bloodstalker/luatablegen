@@ -65,14 +65,15 @@ SOURCE_FILE_NAME='XXX_luatablegen.c'
 HEADER_FILE_NAME='XXX_luatablegen.h'
 LUA_PUSH_TABLE = """
 int pushluatable_YYY(lua_State* ls, XXX array) {
-  lua_newtable(ls);
-  if (!lua_checkstack(ls, count+1)) {
+  if (!lua_checkstack(ls, 2)) {
     printf("Not enough space on the lua stack.");
     return -1;
   }
+  lua_newtable(ls);
   for (int i = 0; i < count; ++i) {
     lua_pushinteger(i+1);
-    push_self_ZZZ(ls, array[i]);
+    WWW_push_args(ls, array[i]);
+    new_WWW(ls);
     lua_settable(ls, -3);
   }
   return 0;
@@ -525,7 +526,8 @@ class TbgParser(object):
                     else:
                         xxx = node.attrib["name"]
                         zzz = "lua_push" + node.attrib["luatype"]
-                    tbl_source.write(LUA_PUSH_TABLE.replace("XXX", xxx+pointer).replace("YYY", xxx))
+                    if pointer == "*": continue
+                    tbl_source.write(LUA_PUSH_TABLE.replace("XXX", xxx+pointer).replace("YYY", xxx).replace("WWW", xxx))
                     tbl_header.write(LUA_PUSH_TABLE_SIG.replace("XXX", xxx+pointer).replace("YYY", xxx))
         #end of tadldef
 
