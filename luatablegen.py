@@ -88,6 +88,43 @@ LUA_SETMETA_NEW = ["setmetatable(XXX, {__call =\n", "\tfunction(selfAAA)\n",
 LUA_TO_GENERIC = "lua_to_YYY(__ls, ZZZ);\n"
 LUA_TO_GENERIC_DEF = "YYY lua_to_YYY(lua_State* ls, XXX array, ZZZ) {}\n"
 
+def simple_type_resovler(type_str):
+    if type_str == "int8":
+        return "int8_t"
+    elif type_str == "uint8":
+        return "uint8_t"
+    elif type_str == "int16":
+        return "int16_t"
+    elif type_str == "uint16":
+        return "uint16_t"
+    elif type_str == "int32":
+        return "int32_t"
+    elif type_str == "uint32":
+        return "uint32_t"
+    elif type_str == "int64":
+        return "int64_t"
+    elif type_str == "uint64":
+        return "uint64_t"
+    elif type_str == "int128":
+        return "int128_t"
+    elif type_str == "uint128":
+        return "uint128_t"
+    elif type_str == "float":
+        return "float"
+    elif type_str == "double":
+        return "double"
+    elif type_str == "bool":
+        return "uint8_t"
+    elif type_str == "uchar":
+        return "uint8_t"
+    elif type_str == "schar":
+        return "int8_t"
+    elif type_str == "string":
+        return "char*"
+    elif type_str == "FT::conditional":
+        return "void*"
+    else: return type_str
+
 def type_resolver(elem, elem_list):
     if "isaggregate" in elem.attrib:
         type_str = elem.attrib["name"]
@@ -342,20 +379,19 @@ class TbgParser(object):
         c_source.write(NEW[0].replace("XXX", struct_name))
         c_source.write("\tlua_checkstack(__ls, " + repr(len(field_names)) + ");\n")
         for lua_type, field_name, field_type in zip(lua_types, field_names, field_types):
-            if lua_type == "integer": dummy = "\t"+field_type +" "+field_name+" = "+"luaL_optinteger(__ls,"+repr(rev_counter)+",0);\n"
+            if lua_type == "integer": dummy = "\t"+simple_type_resovler(field_type) +" "+field_name+" = "+"luaL_optinteger(__ls,"+repr(rev_counter)+",0);\n"
             elif lua_type == "lightuserdata": dummy = "\t"+field_type +" "+field_name+" = "+"lua_touserdata(__ls,"+repr(rev_counter)+");\n"
             elif lua_type == "number": pass
-            elif lua_type == "string":dummy = "\t"+field_type +" "+field_name+" = "+"lua_tostring(__ls,"+repr(rev_counter)+");\n"
+            elif lua_type == "string":dummy = "\t"+simple_type_resovler(field_type) +" "+field_name+" = "+"lua_tostring(__ls,"+repr(rev_counter)+");\n"
             elif lua_type == "boolean": pass
             elif lua_type == "table":
                 parent = get_def_node(struct_name, self.elems)
                 child = get_def_node(field_name, self.elems)
-                if not child:
-                    for child in parent:
-                        if child.attrib["name"] == field_name: child = child
+                for kid in parent:
+                    if kid.attrib["name"] == field_name: child = kid
                 temp = self.gen_lua_table_push_call(child, rev_counter)
                 temp2 = self.gen_luato_generic(struct_name, field_name, rev_counter)
-                dummy = temp[0]+"=" + temp2
+                dummy = temp[0] + "=" + temp2
             else:
                 print("bad lua_type entry in the json file")
                 sys.exit(1)
@@ -385,7 +421,7 @@ class TbgParser(object):
                 if not child:
                     for kid in parent:
                         if kid.attrib["name"] == field_name: child = kid
-                dummy = "\tpushluatable_" + type_resolver(child, self.elems) +"(__ls, _st->"+field_name+");\n"
+                dummy = "\tpushluatable_" + type_resolver(child, self.elems) +"(__ls, dummy->"+field_name+");\n"
             else:
                 print("bad lua_type entry in the json file")
                 sys.exit(1)
