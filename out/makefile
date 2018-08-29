@@ -8,7 +8,7 @@ CC_EXTRA?=
 CTAGS_I_PATH?=./
 LD_FLAGS=
 LIB_LUA=../lua5/liblua.a
-EXTRA_LD_FLAGS?=-L ../lua5
+EXTRA_LD_FLAGS?=-lm -ldl -llua
 ADD_SANITIZERS_CC= -g -fsanitize=address -fno-omit-frame-pointer
 ADD_SANITIZERS_LD= -g -fsanitize=address
 MEM_SANITIZERS_CC= -g -fsanitize=memory -fno-omit-frame-pointer
@@ -80,16 +80,16 @@ depend:.depend
 $(LIB_LUA):
 	$(MAKE) -C ../lua5 a
 
-$(TARGET): $(TARGET).o $(LIB_LUA)
+$(TARGET): $(TARGET).o $(LIB_LUA) $(OBJ_LIST)
 	$(CC) $^ $(LD_FLAGS) -o $@
 
-$(TARGET)-static: $(TARGET).o $(LIB_LUA)
+$(TARGET)-static: $(TARGET).o $(LIB_LUA) $(OBJ_LIST)
 	$(CC) $^ $(LD_FLAGS) -static -o $@
 
-$(TARGET)-dbg: $(TARGET).odbg $(LIB_LUA)
+$(TARGET)-dbg: $(TARGET).odbg $(LIB_LUA) $(OBJ_LIST)
 	$(CC) $^ $(LD_FLAGS) -g -o $@
 
-$(TARGET)-cov: $(TARGET).ocov $(LIB_LUA)
+$(TARGET)-cov: $(TARGET).ocov $(LIB_LUA) $(OBJ_LIST)
 	$(CC) $^ $(LD_FLAGS) $(COV_LD) -o $@
 
 cov:
@@ -116,10 +116,10 @@ tags:$(SRCS)
 %.dis: %.o
 	objdump -r -d -M intel -S $< > $@
 
-$(TARGET).so: $(TARGET).o $(LIB_LUA)
+$(TARGET).so: $(TARGET).o $(LIB_LUA) $(OBJ_LIST)
 	$(CC) $^ $(LD_FLAGS) -shared -o $@
 
-$(TARGET).a: $(TARGET).o $(LIB_LUA)
+$(TARGET).a: $(TARGET).o $(LIB_LUA) $(OBJ_LIST)
 	ar rcs $(TARGET).a $(TARGET).o
 
 runcov: $(TARGET)-cov

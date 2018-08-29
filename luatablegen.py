@@ -80,7 +80,8 @@ int pushluatable_YYY(lua_State* ls, XXX array) {
     i++;
   }
   return 0;
-}"""
+}
+"""
 
 LUA_PUSH_TABLE_SIG = "int pushluatable_YYY(lua_State* ls, XXX array);\n"
 LUA_PUSH_TABLE_CALL = "pushluatable_YYY(lua_State* ls, WWW, XXX array);\n"
@@ -295,7 +296,8 @@ class TbgParser(object):
     def gen_luato_generic(self, struct_name, field_name, arg_pos):
         parent = get_def_node(struct_name, self.elems)
         child = get_def_node(field_name, self.elems)
-        return LUA_TO_GENERIC.replace("YYY", struct_name + "_" + field_name).replace("ZZZ", repr(arg_pos))
+        #return LUA_TO_GENERIC.replace("YYY", struct_name + "_" + field_name).replace("ZZZ", repr(arg_pos))
+        return "check_" + struct_name + "(__ls," + repr(arg_pos) + ");\n"
 
     def struct(self, c_source, field_names, field_types, struct_name):
         c_source.write("typedef struct {\n")
@@ -593,8 +595,9 @@ class TbgParser(object):
                 count_replacement = ""
                 type_name = type_resolver(node, self.def_elems+self.read_elems)
                 type_ref_node = get_def_node(type_name, self.def_elems+self.read_elems)
-                if type_ref_node and node.tag not in tbl_tag_list:
-                    tbl_tag_list.append(node.tag)
+                if type_ref_node and type_ref_node.tag not in tbl_tag_list:
+                    tbl_tag_list.append(type_ref_node.tag)
+                    print(type_ref_node.tag)
                     count = get_elem_count(node)
                     pointer = ""
                     if count == -1:
@@ -602,7 +605,7 @@ class TbgParser(object):
                             if node2.tag == node.attrib["count"][6:]:
                                 count_replacement = node2.attrib["name"]
                     if count == 1:
-                        pointer = ""
+                        pointer = "*"
                     else:
                         pointer += "*"
                     yyy = node.attrib["name"]
@@ -613,7 +616,7 @@ class TbgParser(object):
                     else:
                         xxx = node.attrib["name"]
                         zzz = "lua_push" + node.attrib["luatype"]
-                    if pointer == "*": continue
+                    #if pointer == "*": continue
                     tbl_source.write(LUA_PUSH_TABLE.replace("XXX", xxx+pointer).replace("YYY", xxx).replace("WWW", xxx))
                     tbl_header.write(LUA_PUSH_TABLE_SIG.replace("XXX", xxx+pointer).replace("YYY", xxx))
         #end of tadldef
