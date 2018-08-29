@@ -162,13 +162,13 @@
       <Body_size name="body_size" encoding="leb128u" type="uint32" count="1" luatype="integer"/>
       <Local_Count name="local_count" encoding="leb128u" type="uint32" count="1" luatype="integer"/>
       <Local_Entries name="locals" type="self::Local_Entry" count="self::Local_Count" luatype="table"/>
-      <Code name="code" type="uchar" count="self::Body_size" luatype="integer"/>
+      <Code name="code" type="uint8" count="self::Body_size" luatype="integer"/>
     </Function_Body>
     <Data_Segment name="W_Data_Segment" isaggregate="true" luatype="table">
       <Index name="index" encoding="leb128u" type="uint32" count="1" luatype="integer"/>
       <Offset name="offset" type="self::Init_Expr" count="1" luatype="table"/>
       <Size name="size" encoding="leb128u" type="uint32" count="1" luatype="integer"/>
-      <Data name="data" type="uchar" count="self::Size" luatype="table"/>
+      <Data name="data" type="uint8" count="self::Size" luatype="table"/>
     </Data_Segment>
   </Definition>
 </FT>

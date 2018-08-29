@@ -65,7 +65,7 @@ SOURCE_FILE_NAME='XXX_luatablegen.c'
 HEADER_FILE_NAME='XXX_luatablegen.h'
 LUA_PUSH_TABLE = """
 int pushluatable_YYY(lua_State* ls, XXX array) {
-  if (!lua_checkstack(ls, 2)) {
+  if (!lua_checkstack(ls, 3)) {
     printf("Not enough space on the lua stack.");
     return -1;
   }
@@ -82,7 +82,26 @@ int pushluatable_YYY(lua_State* ls, XXX array) {
   return 0;
 }
 """
+LUA_PUSH_TABLE_SIMPLE_TYPE = """
+int pushluatable_YYY(lua_State* ls, XXX array) {
+  if (!lua_checkstack(ls, 3)) {
+    printf("Not enough space on the lua stack.");
+    return -1;
+  }
+  lua_newtable(ls);
+  uint64_t i = 1U;
+  while(1) {
+    if (array[i] == NULL) break;
+    lua_pushinteger(ls, i+1);
+    lua_pushZZZ(ls, array[i]);
+    lua_settable(ls, -3);
+    i++;
+  }
+  return 0;
+}
+"""
 
+LUA_PUSH_TABLE_SIMPLE_TYPE_SIG = 'int pushluatable_YYY(lua_State* ls, XXX array);\n'
 LUA_PUSH_TABLE_SIG = "int pushluatable_YYY(lua_State* ls, XXX array);\n"
 LUA_PUSH_TABLE_CALL = "pushluatable_YYY(lua_State* ls, WWW, XXX array);\n"
 
@@ -91,6 +110,41 @@ LUA_SETMETA_NEW = ["setmetatable(XXX, {__call =\n", "\tfunction(selfAAA)\n",
                    "\t\tlocal t = self.new(AAA)\n", "\t\treturn t\n\tend\n\t}\n)\n"]
 LUA_TO_GENERIC = "lua_to_YYY(__ls, ZZZ);\n"
 LUA_TO_GENERIC_DEF = "YYY lua_to_YYY(lua_State* ls, XXX array, ZZZ) {}\n"
+
+def lua_type_resolver(type_str):
+    if type_str == "int8":
+        return "integer"
+    elif type_str == "uint8":
+        return "integer"
+    elif type_str == "int16":
+        return "integer"
+    elif type_str == "uint16":
+        return "integer"
+    elif type_str == "int32":
+        return "integer"
+    elif type_str == "uint32":
+        return "integer"
+    elif type_str == "int64":
+        return "integer"
+    elif type_str == "uint64":
+        return "integer"
+    elif type_str == "int128":
+        return "integer"
+    elif type_str == "uint128":
+        return "integer"
+    elif type_str == "float":
+        return "number"
+    elif type_str == "double":
+        return "number"
+    elif type_str == "bool":
+        return "integer"
+    elif type_str == "uchar":
+        return "number"
+    elif type_str == "schar":
+        return "number"
+    elif type_str == "string":
+        return "string"
+    else: return "lightuserdata"
 
 def simple_type_resovler(type_str):
     if type_str == "int8":
@@ -243,6 +297,7 @@ class TbgParser(object):
                 c_source.write(header.replace("HHH", self.argparser.args.luaheader+"/"))
             else:
                 c_source.write(header.replace("HHH", ""))
+        c_source.write('#include "./tabledefs.h"\n')
         if not is_source: c_source.write(HEADER_GUARD[0].replace("XXX", struct_name))
         if not is_source: c_source.write(EXTERN_C[0])
         if is_source: c_source.write("#include " + '"./' +h_filename+ '"\n')
@@ -269,10 +324,11 @@ class TbgParser(object):
             pointer += "*"
             xxx = type_ref_node.attrib["name"]
             zzz = "push_" + type_ref_node.attrib["name"]
+            return LUA_PUSH_TABLE.replace("XXX", xxx+pointer).replace("YYY", yyy).replace("ZZZ", zzz)
         else:
             xxx = node.attrib["name"]
             zzz = "lua_push" + node.attrib["luatype"]
-        return LUA_PUSH_TABLE.replace("XXX", xxx+pointer).replace("YYY", yyy).replace("ZZZ", zzz)
+            return LUA_PUSH_TABLE_SIMPLE_TYPE.replace("XXX", xxx+pointer).replace("YYY", yyy).replace("ZZZ", zzz)
 
     def gen_lua_table_push_call(self, node, arg_pos):
         type_name = type_resolver(node, self.def_elems+self.read_elems)
@@ -296,7 +352,6 @@ class TbgParser(object):
     def gen_luato_generic(self, struct_name, field_name, arg_pos):
         parent = get_def_node(struct_name, self.elems)
         child = get_def_node(field_name, self.elems)
-        #return LUA_TO_GENERIC.replace("YYY", struct_name + "_" + field_name).replace("ZZZ", repr(arg_pos))
         return "check_" + struct_name + "(__ls," + repr(arg_pos) + ");\n"
 
     def struct(self, c_source, field_names, field_types, struct_name):
@@ -392,7 +447,8 @@ class TbgParser(object):
                     elif childer.attrib["luatype"] == "table":
                         count = get_elem_count(childer)
                         if count == 1:
-                            c_source.write("lua_push_" + childer.attrib["type"][6:] + "(__ls, _st->" + child.attrib["name"] + ");\n")
+                            ref_type_node = get_def_node_tag(childer.attrib["type"][6:], self.elems)
+                            c_source.write("push_" + ref_type_node.attrib["name"] + "(__ls, _st->" + child.attrib["name"] + ");\n")
                     else: pass
             else:
                 print("bad lua_type entry in the json file")
@@ -569,11 +625,7 @@ class TbgParser(object):
 
         l_source.write(LUA_LIB[1])
 
-    def run(self):
-        self.read_xml()
-        header_aggr_list = []
-        table_reg_list = []
-        # generating the tbldef files
+    def gen_table_def(self):
         tbl_source = open(self.argparser.args.tbldefs + "/tabledefs.c", "w")
         tbl_header = open(self.argparser.args.tbldefs + "/tabledefs.h", "w")
         tbl_source.write("// automatically generated by luatablegen\n")
@@ -590,14 +642,15 @@ class TbgParser(object):
         tbl_source.write('#include "../wasm.h"\n')
         tbl_header.write('#include "../wasm.h"\n')
         tbl_tag_list = []
+        simple_table_list = []
         for elem in self.elems:
             for node in elem:
                 count_replacement = ""
                 type_name = type_resolver(node, self.def_elems+self.read_elems)
                 type_ref_node = get_def_node(type_name, self.def_elems+self.read_elems)
+                # if node has attribute aggregate
                 if type_ref_node and type_ref_node.tag not in tbl_tag_list:
                     tbl_tag_list.append(type_ref_node.tag)
-                    print(type_ref_node.tag)
                     count = get_elem_count(node)
                     pointer = ""
                     if count == -1:
@@ -619,7 +672,27 @@ class TbgParser(object):
                     #if pointer == "*": continue
                     tbl_source.write(LUA_PUSH_TABLE.replace("XXX", xxx+pointer).replace("YYY", xxx).replace("WWW", xxx))
                     tbl_header.write(LUA_PUSH_TABLE_SIG.replace("XXX", xxx+pointer).replace("YYY", xxx))
-        #end of tadldef
+                # if node is simple type
+                else:
+                    count = get_elem_count(node)
+                    simple_type = simple_type_resovler(node.attrib["type"])
+                    if count != 1 and simple_type not in simple_table_list:
+                        simple_table_list.append(simple_type)
+                        print(simple_type)
+                        yyy = node.attrib["name"]
+                        xxx = simple_type_resovler(node.attrib["type"])
+                        #simple_type = lua_type_resolver(node.attrib["type"])
+                        # lightuserdata types are being handled elsewhere
+                        if simple_type == "lightuserdata": continue
+                        lua_type = lua_type_resolver(node.attrib["type"])
+                        tbl_source.write(LUA_PUSH_TABLE_SIMPLE_TYPE.replace("YYY", xxx).replace("XXX", simple_type+"*").replace("ZZZ", lua_type))
+                        tbl_header.write(LUA_PUSH_TABLE_SIMPLE_TYPE_SIG.replace("YYY", xxx).replace("XXX", simple_type+"*"))
+
+    def run(self):
+        header_aggr_list = []
+        table_reg_list = []
+        self.read_xml()
+        self.gen_table_def()
 
         if self.argparser.args.singlefile:
             c_source = open(self.argparser.args.outfile, "w")
@@ -629,13 +702,6 @@ class TbgParser(object):
             d_source.write("```lua\nlocal wasm = require(\"wasm\")\n```\n")
         #for k, v in self.tbg_file.items():
         for struct_name, field_names, field_types, lua_types in zip(self.struct_names, self.field_names, self.field_types, self.lua_types):
-            '''
-            struct_name = k
-            field_names = v['field_name']
-            field_types = v['field_type']
-            lua_types = v['lua_type']
-            methods = v['methods']
-            '''
             if not self.argparser.args.singlefile:
                 c_filename = struct_name + "_tablegen.c"
                 h_filename = struct_name + "_tablegen.h"
