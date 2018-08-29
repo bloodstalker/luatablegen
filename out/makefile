@@ -3,12 +3,12 @@ SHELL=bash
 SHELL?=bash
 CC=clang
 CC?=clang
-CC_FLAGS=-fpic
+CC_FLAGS=
 CC_EXTRA?=
 CTAGS_I_PATH?=./
 LD_FLAGS=
 LIB_LUA=../lua5/liblua.a
-EXTRA_LD_FLAGS?=-lm -ldl -llua
+EXTRA_LD_FLAGS?=-lm -ldl
 ADD_SANITIZERS_CC= -g -fsanitize=address -fno-omit-frame-pointer
 ADD_SANITIZERS_LD= -g -fsanitize=address
 MEM_SANITIZERS_CC= -g -fsanitize=memory -fno-omit-frame-pointer
@@ -81,7 +81,7 @@ $(LIB_LUA):
 	$(MAKE) -C ../lua5 a
 
 $(TARGET): $(TARGET).o $(LIB_LUA) $(OBJ_LIST)
-	$(CC) $^ $(LD_FLAGS) -o $@
+	$(CC) $(LD_FLAGS) $^ -o $@
 
 $(TARGET)-static: $(TARGET).o $(LIB_LUA) $(OBJ_LIST)
 	$(CC) $^ $(LD_FLAGS) -static -o $@

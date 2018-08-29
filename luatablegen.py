@@ -50,9 +50,13 @@ REGISTER_TABLE_METHODS = ['static const luaL_Reg XXX_methods[] = {\n',
 REGISTER_META = ['static const luaL_Reg XXX_meta[] = {\n',
                  '\t{0, 0}\n};\n']
 TABLE_REGISTER =  ['int XXX_register(lua_State* __ls) {\n',
-  '\tluaL_openlib(__ls, "XXX", XXX_methods, 0);\n',
+  'lua_newtable(__ls);\n',
+  'luaL_setfuncs(__ls, XXX_methods, 0);\n',
+  'lua_setglobal(__ls, "XXX");\n',
   '\tluaL_newmetatable(__ls, "XXX");\n',
-  '\tluaL_openlib(__ls, 0, XXX_meta, 0);\n',
+  'lua_newtable(__ls);\n',
+  'luaL_setfuncs(__ls, XXX_meta, 0);\n',
+  'lua_setglobal(__ls, 0);\n',
   '\tlua_pushliteral(__ls, "__index");\n',
   '\tlua_pushvalue(__ls, -3);\n',
   '\tlua_rawset(__ls, -3);\n',
@@ -612,7 +616,6 @@ class TbgParser(object):
             field_names = v['field_name']
             field_types = v['field_type']
             lua_types = v['lua_type']
-            #methods = v['methods']
             l_source.write(LUA_SETMETA_NEW[0].replace("XXX", struct_name))
             arg_list_str = str()
             for i in range(0, len(field_names)):
@@ -678,10 +681,8 @@ class TbgParser(object):
                     simple_type = simple_type_resovler(node.attrib["type"])
                     if count != 1 and simple_type not in simple_table_list:
                         simple_table_list.append(simple_type)
-                        print(simple_type)
                         yyy = node.attrib["name"]
                         xxx = simple_type_resovler(node.attrib["type"])
-                        #simple_type = lua_type_resolver(node.attrib["type"])
                         # lightuserdata types are being handled elsewhere
                         if simple_type == "lightuserdata": continue
                         lua_type = lua_type_resolver(node.attrib["type"])
