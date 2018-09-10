@@ -49,7 +49,9 @@ REGISTER_TABLE_METHODS = ['static const luaL_Reg XXX_methods[] = {\n',
                           '\t{0,0}\n};\n']
 REGISTER_META = ['static const luaL_Reg XXX_meta[] = {\n',
                  '\t{0, 0}\n};\n']
+# table register function for anonymous lua tables
 TABLE_REGISTER =  ['int XXX_register(lua_State* __ls) {\n',
+  'lua_checkstack(__ls, 4);\n'
   'lua_newtable(__ls);\n',
   'luaL_setfuncs(__ls, XXX_methods, 0);\n',
   'luaL_newmetatable(__ls, "XXX");\n',
@@ -60,6 +62,22 @@ TABLE_REGISTER =  ['int XXX_register(lua_State* __ls) {\n',
   'lua_pushliteral(__ls, "__metatable");\n',
   'lua_pushvalue(__ls, -3);\n',
   'lua_rawset(__ls, -3);\n',
+  'lua_setglobal(__ls , "XXX");\n'
+  'return 0;\n}\n']
+# table register for global lua tables
+TABLE_REGISTER_G =  ['int XXX_register(lua_State* __ls) {\n',
+  'lua_checkstack(__ls, 4);\n'
+  'lua_newtable(__ls);\n',
+  'luaL_setfuncs(__ls, XXX_methods, 0);\n',
+  'luaL_newmetatable(__ls, "XXX");\n',
+  'luaL_setfuncs(__ls, XXX_meta, 0);\n',
+  'lua_pushliteral(__ls, "__index");\n',
+  'lua_pushvalue(__ls, -3);\n',
+  'lua_rawset(__ls, -3);\n',
+  'lua_pushliteral(__ls, "__metatable");\n',
+  'lua_pushvalue(__ls, -3);\n',
+  'lua_rawset(__ls, -3);\n',
+  'lua_setglobal(__ls , "XXX");\n'
   'return 1;\n}\n']
 SOURCE_FILE_NAME='XXX_luatablegen.c'
 HEADER_FILE_NAME='XXX_luatablegen.h'
@@ -271,6 +289,7 @@ class Argparser(object):
         parser.add_argument("--dbg", action="store_true", help="debug", default=False)
         parser.add_argument("--singlefile", action="store_true", help="should all the generated code be added to a single file", default=False)
         parser.add_argument("--makemacro", action="store_true", help="generate a makefile containing all objects in a macro to be included by another makefile", default=False)
+        parser.add_argument("--anon", action="store_true", help="generate anonymous lua tables if true, global if false", default=True)
         parser.add_argument("--outfile", type=str, help="name of the output file if signlefile is set, ignored otherwise")
         parser.add_argument("--headeraggr", type=str, help="header aggregate file name")
         parser.add_argument("--lualibpath", type=str, help="where the lua module file will be placed")
@@ -562,8 +581,14 @@ class TbgParser(object):
         c_source.write("\n")
 
     def register_table(self, c_source, struct_name):
-        for line in TABLE_REGISTER:
-            c_source.write(line.replace("XXX", struct_name))
+        # if anon tables were selected
+        if self.argparser.args.anon:
+            for line in TABLE_REGISTER:
+                c_source.write(line.replace("XXX", struct_name))
+        # if global tables were selected
+        else:
+            for line in TABLE_REGISTER_G:
+                c_source.write(line.replace("XXX", struct_name))
 
     def end(self, c_source, is_source):
         if self.argparser.args.post:
@@ -763,7 +788,10 @@ class TbgParser(object):
             aggr_header_h.write("void reg_tablegen_tables(lua_State* __ls);\n")
             for func_sig in table_reg_list:
                 aggr_header.write("\t" + func_sig)
-                aggr_header.write("\t" + "lua_pop(__ls, 1);\n")
+                if self.argparser.args.anon:
+                    pass
+                else:
+                    aggr_header.write("\t" + "lua_pop(__ls, 1);\n")
             aggr_header.write("}\n")
             aggr_header_h.write(EXTERN_C[1])
             aggr_header_h.write(HEADER_GUARD[1])

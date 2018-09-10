@@ -1,4 +1,4 @@
-TARGET=main
+TARGET=lua
 SHELL=bash
 SHELL?=bash
 CC=clang

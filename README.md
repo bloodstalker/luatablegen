@@ -6,6 +6,9 @@ Each structure will have it's own pair of C source and header. There is an optio
 `luatablegen` will generate a lua file that includes default constructors for all tables which you can use in Lua with `require`. luatablegen will also generate a markdown file listing the methods for the tables.<br/>
 For an example you can look under the test directory.<br/>
 
+## Lua Version
+The generated code is supposed to be used with lua 5.3.<br/>
+
 ## table gen file
 
 Each entry in the JSON file should have the following fields:<br/>
