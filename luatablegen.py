@@ -720,8 +720,8 @@ class TbgParser(object):
             else:
                 tbl_source.write(header.replace("HHH", ""))
                 tbl_header.write(header.replace("HHH", ""))
-        tbl_source.write('#include "../wasm.h"\n')
-        tbl_header.write('#include "../wasm.h"\n')
+        tbl_source.write('#include "./structs.h"\n')
+        tbl_header.write('#include "./structs.h"\n')
         tbl_tag_list = []
         simple_table_list = []
         for elem in self.elems:
