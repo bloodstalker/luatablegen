@@ -49,6 +49,22 @@ REGISTER_TABLE_METHODS = ['static const luaL_Reg XXX_methods[] = {\n',
                           '\t{0,0}\n};\n']
 REGISTER_META = ['static const luaL_Reg XXX_meta[] = {\n',
                  '\t{0, 0}\n};\n']
+# table register for global lua tables
+TABLE_REGISTER_G =  ['int XXX_register(lua_State* __ls) {\n',
+  'lua_checkstack(__ls, 4);\n'
+  'lua_newtable(__ls);\n',
+  'luaL_setfuncs(__ls, XXX_methods, 0);\n',
+  'lua_setglobal(__ls, "XXX");\n',
+  'luaL_newmetatable(__ls, "XXX");\n',
+  'luaL_setfuncs(__ls, XXX_meta, 0);\n',
+  'lua_pushliteral(__ls, "__index");\n',
+  'lua_pushvalue(__ls, -3);\n',
+  'lua_rawset(__ls, -3);\n',
+  'lua_pushliteral(__ls, "__metatable");\n',
+  'lua_pushvalue(__ls, -3);\n',
+  'lua_rawset(__ls, -3);\n',
+  'lua_setglobal(__ls , "XXX");\n'
+  'return 0;\n}\n']
 # table register function for anonymous lua tables
 TABLE_REGISTER =  ['int XXX_register(lua_State* __ls) {\n',
   'lua_checkstack(__ls, 4);\n'
@@ -64,21 +80,6 @@ TABLE_REGISTER =  ['int XXX_register(lua_State* __ls) {\n',
   'lua_rawset(__ls, -3);\n',
   'lua_setglobal(__ls , "XXX");\n'
   'return 0;\n}\n']
-# table register for global lua tables
-TABLE_REGISTER_G =  ['int XXX_register(lua_State* __ls) {\n',
-  'lua_checkstack(__ls, 4);\n'
-  'lua_newtable(__ls);\n',
-  'luaL_setfuncs(__ls, XXX_methods, 0);\n',
-  'luaL_newmetatable(__ls, "XXX");\n',
-  'luaL_setfuncs(__ls, XXX_meta, 0);\n',
-  'lua_pushliteral(__ls, "__index");\n',
-  'lua_pushvalue(__ls, -3);\n',
-  'lua_rawset(__ls, -3);\n',
-  'lua_pushliteral(__ls, "__metatable");\n',
-  'lua_pushvalue(__ls, -3);\n',
-  'lua_rawset(__ls, -3);\n',
-  'lua_setglobal(__ls , "XXX");\n'
-  'return 1;\n}\n']
 SOURCE_FILE_NAME='XXX_luatablegen.c'
 HEADER_FILE_NAME='XXX_luatablegen.h'
 LUA_PUSH_TABLE = """
