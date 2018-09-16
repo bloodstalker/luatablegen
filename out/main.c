@@ -9,5 +9,5 @@
 int main(int argc, char **argv) {
   lua_State *ls = luaL_newstate();
   luaL_openlibs(ls);
-  reg_tablegen_tables(ls);
+  reg_tablegen_tables_wasm(ls);
 }

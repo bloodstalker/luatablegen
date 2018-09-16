@@ -287,6 +287,7 @@ class Argparser(object):
     def __init__(self):
         parser = argparse.ArgumentParser()
         parser.add_argument("--out", type=str, help="output directory")
+        parser.add_argument("--name", type=str, help="will be used to generate some custom names")
         parser.add_argument("--tbg", type=str, help="the table gen file")
         parser.add_argument("--pre", type=str, help="path to source code file to add after header guard/extern c")
         parser.add_argument("--post", type=str, help="path to source code file to add before header guard/extern c end")
@@ -842,8 +843,8 @@ class TbgParser(object):
                 aggr_header_h.write("#include " + '"' + item + '"\n')
             aggr_header.write("#include " + '".' + dummy + '"\n')
             aggr_header.write("\n")
-            aggr_header.write("void reg_tablegen_tables(lua_State* __ls) {\n")
-            aggr_header_h.write("void reg_tablegen_tables(lua_State* __ls);\n")
+            aggr_header.write("void reg_tablegen_tables_"+self.argparser.args.name+"(lua_State* __ls) {\n")
+            aggr_header_h.write("void reg_tablegen_tables_"+self.argparser.args.name+"(lua_State* __ls);\n")
             for func_sig in table_reg_list:
                 aggr_header.write("\t" + func_sig)
                 if self.argparser.args.anon:
