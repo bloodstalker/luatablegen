@@ -95,9 +95,9 @@ int pushluatable_YYY(lua_State* ls, XXX array) {
     lua_pushinteger(ls, i+1);
     WWW_push_args(ls, array[i]);
     new_WWW(ls);
-    lua_settable(ls, -3);
     i++;
   }
+  lua_settable(ls, -3);
   return 0;
 }
 """
