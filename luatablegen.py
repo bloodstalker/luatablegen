@@ -34,7 +34,7 @@ PUSH_SELF = [ 'XXX* push_XXX(lua_State* __ls) {\n',
             '\tlua_setmetatable(__ls, -2);\n',
             '\treturn dummy;\n}\n']
 PUSH_ARGS = ['int XXX_push_args(lua_State* __ls, XXX* _st) {\n',
-             '\tlua_checkstack(__ls, NNN);\n', '\treturn 0;\n}\n']
+             '\tlua_checkstack(__ls, NNN);\n', '\treturn NNN;\n}\n']
 NEW = ['int new_XXX(lua_State* __ls) {\n', '\tlua_checkstack(__ls, NNN);\n',
        '\tXXX* dummy = push_XXX(__ls);\n', '\treturn 1;\n}\n']
 GETTER_GEN = ['static int getter_XXX_YYY(lua_State* __ls) {\n',
@@ -89,7 +89,7 @@ int pushluatable_YYY(lua_State* ls, XXX array) {
     return -1;
   }
   lua_newtable(ls);
-  uint64_t i = 1U;
+  uint64_t i = 0U;
   while(1) {
     if (array[i] == NULL) break;
     lua_pushinteger(ls, i+1);
@@ -532,7 +532,7 @@ class TbgParser(object):
                 sys.exit(1)
             c_source.write(dummy)
             dummy = str()
-        c_source.write(PUSH_ARGS[2])
+        c_source.write(PUSH_ARGS[2].replace("NNN", repr(len(field_names))))
         c_source.write("\n")
 
     def new(self, c_source, struct_name, field_types, field_names, lua_types):
