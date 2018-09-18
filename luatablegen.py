@@ -83,34 +83,32 @@ TABLE_REGISTER =  ['int XXX_register(lua_State* __ls) {\n',
 SOURCE_FILE_NAME='XXX_luatablegen.c'
 HEADER_FILE_NAME='XXX_luatablegen.h'
 LUA_PUSH_TABLE = """
-int pushluatable_YYY(lua_State* ls, XXX array) {
+int pushluatable_YYY(lua_State* ls, XXX array, uint64_t count) {
   if (!lua_checkstack(ls, 3)) {
     printf("Not enough space on the lua stack.");
     return -1;
   }
   lua_newtable(ls);
   uint64_t i = 0U;
-  while(1) {
-    if (array[i] == NULL) break;
+  for (int j = 0; j < count; ++j) {
     lua_pushinteger(ls, i+1);
     WWW_push_args(ls, array[i]);
     new_WWW(ls);
+    lua_settable(ls, -3);
     i++;
   }
-  lua_settable(ls, -3);
   return 0;
 }
 """
 LUA_PUSH_TABLE_SIMPLE_TYPE = """
-int pushluatable_YYY(lua_State* ls, XXX array) {
+int pushluatable_YYY(lua_State* ls, XXX array, uint64_t count) {
   if (!lua_checkstack(ls, 3)) {
     printf("Not enough space on the lua stack.");
     return -1;
   }
   lua_newtable(ls);
   uint64_t i = 1U;
-  while(1) {
-    if (array[i] == NULL) break;
+  for (int j = 0; j < count; ++j) {
     lua_pushinteger(ls, i+1);
     lua_pushZZZ(ls, array[i]);
     lua_settable(ls, -3);
@@ -120,9 +118,9 @@ int pushluatable_YYY(lua_State* ls, XXX array) {
 }
 """
 
-LUA_PUSH_TABLE_SIMPLE_TYPE_SIG = 'int pushluatable_YYY(lua_State* ls, XXX array);\n'
-LUA_PUSH_TABLE_SIG = "int pushluatable_YYY(lua_State* ls, XXX array);\n"
-LUA_PUSH_TABLE_CALL = "pushluatable_YYY(lua_State* ls, WWW, XXX array);\n"
+LUA_PUSH_TABLE_SIMPLE_TYPE_SIG = 'int pushluatable_YYY(lua_State* ls, XXX array, uint64_t count);\n'
+LUA_PUSH_TABLE_SIG = "int pushluatable_YYY(lua_State* ls, XXX array, uint64_t count);\n"
+LUA_PUSH_TABLE_CALL = "pushluatable_YYY(lua_State* ls, WWW, XXX array, ZZZ);\n"
 
 LUA_LIB = ["local wasm = {}\n\n", "return wasm\n"]
 LUA_SETMETA_NEW = ["setmetatable(XXX, {__call =\n", "\tfunction(selfAAA)\n",
@@ -273,6 +271,14 @@ def get_elem_count(elem):
     else:
         return 1
 
+def get_count_node(elem, parent):
+    if "count" in elem.attrib:
+        count_node_name = elem.attrib["count"][6:]
+    for child in parent:
+        if child.tag == count_node_name:
+            return child
+    return None
+
 def SigHandler_SIGINT(signum, frame):
     print()
     sys.exit(0)
@@ -386,10 +392,13 @@ class TbgParser(object):
         struct_source.write("#endif\n")
         #struct_source.write(text.last_comment)
 
-    def gen_lua_table_push_def(self, node, struct_name):
+    def gen_lua_table_push_def(self, node, struct_name, parent):
         type_name = type_resolver(child, self.def_elems+self.read_elems)
         type_ref_node = get_def_node(type_name, self.def_elems+self.read_elems)
         count = get_elem_count(node, self.def_elems+self.read_elems)
+        #count_node = get_count_node(node, parent)
+        count_node_name = str()
+        if count_node: count_node_name = count_node.attrib["name"]
         if count == -1:
             count_node_name = node.attrib["count"][6:]
         if count == 1:
@@ -407,10 +416,14 @@ class TbgParser(object):
             zzz = "lua_push" + node.attrib["luatype"]
             return LUA_PUSH_TABLE_SIMPLE_TYPE.replace("XXX", xxx+pointer).replace("YYY", yyy).replace("ZZZ", zzz)
 
-    def gen_lua_table_push_call(self, node, arg_pos):
+    def gen_lua_table_push_call(self, node, arg_pos, parent):
         type_name = type_resolver(node, self.def_elems+self.read_elems)
         type_ref_node = get_def_node(type_name, self.def_elems+self.read_elems)
         count = get_elem_count(node)
+        count_node = get_count_node(node, parent)
+        count_node_name = str()
+        if count_node != None:
+            count_node_name = count_node.attrib["name"]
         pointer = ""
         if count == 1:
             pointer = ""
@@ -424,7 +437,14 @@ class TbgParser(object):
         else:
             xxx = node.attrib["name"]
             zzz = "lua_push" + node.attrib["luatype"]
-        return [type_resolver(node, self.elems) + pointer + node.attrib["name"], LUA_PUSH_TABLE_CALL.replace("XXX", xxx+pointer).replace("YYY", yyy).replace("WWW", repr(arg_pos))]
+        dummy = str()
+        if count == 1:
+            dummy = "\tpush_" + type_resolver(node, self.elems) +"(__ls, dummy->"+node.attrib["name"]+");\n"
+        elif count > 1:
+            dummy = LUA_PUSH_TABLE_CALL.replace("XXX", xxx+pointer).replace("YYY", yyy).replace("WWW", repr(arg_pos)).replace("ZZZ", count)
+        else:
+            dummy = LUA_PUSH_TABLE_CALL.replace("XXX", xxx+pointer).replace("YYY", yyy).replace("WWW", repr(arg_pos)).replace("ZZZ", count_node_name)
+        return [type_resolver(node, self.elems) + pointer + node.attrib["name"], dummy]
 
     def gen_luato_generic(self, struct_name, field_name, arg_pos):
         parent = get_def_node(struct_name, self.elems)
@@ -505,10 +525,22 @@ class TbgParser(object):
             elif lua_type == "table":
                 parent = get_def_node(struct_name, self.elems)
                 child = get_def_node(field_name, self.elems)
+                count_node_name = str()
                 if not child:
                     for kid in parent:
                         if kid.attrib["name"] == field_name: child = kid
-                dummy = "\tpushluatable_" + type_resolver(child, self.elems) +"(__ls, _st->"+field_name+");\n"
+                count = get_elem_count(child)
+                count_node = get_count_node(child, parent)
+                print("parent:" + parent.attrib["name"])
+                print("child:" + child.attrib["name"])
+                if count_node != None: print("count node:" + count_node.attrib["name"])
+                if count_node != None: count_node_name = count_node.attrib["name"]
+                if count == 1:
+                    dummy = "\tpush_" + type_resolver(child, self.elems) +"(__ls, _st->"+field_name+");\n"
+                elif count > 1:
+                    dummy = "\tpushluatable_" + type_resolver(child, self.elems) +"(__ls, _st->"+field_name+", _st->"+count+");\n"
+                else:
+                    dummy = "\tpushluatable_" + type_resolver(child, self.elems) +"(__ls, _st->"+field_name+", _st->"+count_node_name+");\n"
             elif lua_type == "conditional":
                 parent = get_def_node(struct_name, self.elems)
                 child = get_def_node(field_name, self.elems)
@@ -526,6 +558,7 @@ class TbgParser(object):
                         if count == 1:
                             ref_type_node = get_def_node_tag(childer.attrib["type"][6:], self.elems)
                             c_source.write("push_" + ref_type_node.attrib["name"] + "(__ls, _st->" + child.attrib["name"] + ");\n")
+                        # FIXME
                     else: pass
             else:
                 print("bad lua_type entry in the json file")
@@ -551,7 +584,7 @@ class TbgParser(object):
             elif lua_type == "string":dummy = "\t"+simple_type_resovler(field_type) +" "+field_name+" = "+"lua_tostring(__ls,"+repr(rev_counter)+");\n"
             elif lua_type == "boolean": pass
             elif lua_type == "table":
-                temp = self.gen_lua_table_push_call(child, rev_counter)
+                temp = self.gen_lua_table_push_call(child, rev_counter, parent)
                 temp2 = self.gen_luato_generic(struct_name, field_name, rev_counter)
                 dummy = temp[0] + "=" + temp2
             elif lua_type == "conditional":
@@ -581,11 +614,22 @@ class TbgParser(object):
             elif lua_type == "boolean": dummy = "\tlua_pushboolean(__ls, dummy->"+field_name+");\n"
             elif lua_type == "table":
                 parent = get_def_node(struct_name, self.elems)
-                child = get_def_node(field_name, self.elems)
+                #child = get_def_node(field_name, self.elems)
+                for kid in parent:
+                    if field_name == kid.attrib["name"]: child = kid
+                count = get_elem_count(child)
+                count_node = get_count_node(child, parent)
+                count_node_name = str()
+                if count_node != None: count_node_name = count_node.attrib["name"]
                 if not child:
                     for kid in parent:
                         if kid.attrib["name"] == field_name: child = kid
-                dummy = "\tpushluatable_" + type_resolver(child, self.elems) +"(__ls, dummy->"+field_name+");\n"
+                if count == 1:
+                    dummy = "\tpush_" + type_resolver(child, self.elems) +"(__ls, dummy->"+field_name+");\n"
+                elif count > 1:
+                    dummy = "\tpushluatable_" + type_resolver(child, self.elems) +"(__ls, dummy->"+field_name+", dummy->"+count+");\n"
+                else:
+                    dummy = "\tpushluatable_" + type_resolver(child, self.elems) +"(__ls, dummy->"+field_name+", dummy->"+count_node_name+");\n"
             elif lua_type == "conditional":
                 pass
             else:
