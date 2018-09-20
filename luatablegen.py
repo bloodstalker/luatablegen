@@ -515,6 +515,7 @@ class TbgParser(object):
     def push_args(self, c_source, struct_name, field_names, lua_types):
         dummy = str()
         c_source.write(PUSH_ARGS[0].replace("XXX", struct_name))
+        c_source.write("if (_st == NULL) return 0;\n")
         c_source.write("\tlua_checkstack(__ls, " + repr(len(field_names)) + ");\n")
         for field_name, lua_type in zip(field_names, lua_types):
             if lua_type == "integer": dummy = "\tlua_pushinteger(__ls, _st->"+field_name+");\n"
