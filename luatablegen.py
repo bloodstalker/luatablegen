@@ -533,7 +533,7 @@ class TbgParser(object):
                 count_node = get_count_node(child, parent)
                 #print("parent:" + parent.attrib["name"])
                 #print("child:" + child.attrib["name"])
-                if count_node != None: print("count node:" + count_node.attrib["name"])
+                #if count_node != None: print("count node:" + count_node.attrib["name"])
                 if count_node != None: count_node_name = count_node.attrib["name"]
                 if count == 1:
                     dummy = "\tpush_" + type_resolver(child, self.elems) +"(__ls, _st->"+field_name+");\n"
@@ -579,7 +579,20 @@ class TbgParser(object):
             for kid in parent:
                 if kid.attrib["name"] == field_name: child = kid
             if lua_type == "integer": dummy = "\t"+simple_type_resovler(field_type) +" "+field_name+" = "+"luaL_optinteger(__ls,"+repr(rev_counter)+",0);\n"
-            elif lua_type == "lightuserdata": dummy = "\t"+field_type +" "+field_name+" = "+"lua_touserdata(__ls,"+repr(rev_counter)+");\n"
+            elif lua_type == "lightuserdata":
+                if field_type.find("self::") == 0:
+                    parent_node = get_def_node(struct_name, self.elems)
+                    self_node = get_def_node(field_name, parent_node)
+                    count = get_elem_count(self_node)
+                    ptr = ""
+                    if count != 1: ptr = "*"
+                    child_node = get_def_node_tag(field_type[6:], self.elems)
+                    print("parent node:" + parent_node.attrib["name"])
+                    print("field type:" + field_type[6:])
+                    if child_node != None: print("child_node:" + child_node.attrib["name"])
+                    dummy = "\t"+child_node.attrib["name"] + ptr +"* "+field_name+" = "+"lua_touserdata(__ls,"+repr(rev_counter)+");\n"
+                else:
+                    dummy = "\t"+field_type +" "+field_name+" = "+"lua_touserdata(__ls,"+repr(rev_counter)+");\n"
             elif lua_type == "number": pass
             elif lua_type == "string":dummy = "\t"+simple_type_resovler(field_type) +" "+field_name+" = "+"lua_tostring(__ls,"+repr(rev_counter)+");\n"
             elif lua_type == "boolean": pass
