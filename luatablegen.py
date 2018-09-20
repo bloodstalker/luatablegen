@@ -608,6 +608,7 @@ class TbgParser(object):
             rev_counter += 1
             c_source.write(dummy)
             dummy = str()
+        c_source.write("lua_pop(__ls,"+repr(len(field_types))+");\n")
         c_source.write(NEW[2].replace("XXX", struct_name))
         for field_name in field_names:
             c_source.write("\tdummy->" + field_name + " = " + field_name + ";\n")
