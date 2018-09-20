@@ -531,8 +531,8 @@ class TbgParser(object):
                         if kid.attrib["name"] == field_name: child = kid
                 count = get_elem_count(child)
                 count_node = get_count_node(child, parent)
-                print("parent:" + parent.attrib["name"])
-                print("child:" + child.attrib["name"])
+                #print("parent:" + parent.attrib["name"])
+                #print("child:" + child.attrib["name"])
                 if count_node != None: print("count node:" + count_node.attrib["name"])
                 if count_node != None: count_node_name = count_node.attrib["name"]
                 if count == 1:
