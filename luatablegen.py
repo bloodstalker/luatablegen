@@ -587,9 +587,9 @@ class TbgParser(object):
                     ptr = ""
                     if count != 1: ptr = "*"
                     child_node = get_def_node_tag(field_type[6:], self.elems)
-                    print("parent node:" + parent_node.attrib["name"])
-                    print("field type:" + field_type[6:])
-                    if child_node != None: print("child_node:" + child_node.attrib["name"])
+                    #print("parent node:" + parent_node.attrib["name"])
+                    #print("field type:" + field_type[6:])
+                    #if child_node != None: print("child_node:" + child_node.attrib["name"])
                     dummy = "\t"+child_node.attrib["name"] + ptr +"* "+field_name+" = "+"lua_touserdata(__ls,"+repr(rev_counter)+");\n"
                 else:
                     dummy = "\t"+field_type +" "+field_name+" = "+"lua_touserdata(__ls,"+repr(rev_counter)+");\n"
