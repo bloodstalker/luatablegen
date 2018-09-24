@@ -465,6 +465,23 @@ class TbgParser(object):
         c_source.write("\n")
 
     def check(self, c_source, struct_name):
+        #print(struct_name)
+        node = get_def_node(struct_name, self.elems)
+        #print(node.attrib["name"])
+        has_conditional = False
+        for elem in node:
+            if node.attrib["name"] == "W_Import_Section_Entry": print(elem.tag)
+            if "conditional" in elem.attrib:
+                has_conditional = True
+                print("fuck yeah")
+        if has_conditional == True:
+            print("here")
+            c_source.write('static XXX* check_XXX(lua_State* __ls, int index) {\n'.replace("XXX", struct_name))
+            c_source.write('\tXXX* dummy;\n'.replace("XXX", struct_name))
+            c_source.write('dummy = lua_touserdata(__ls, index);\n'.replace("XXX", struct_name))
+            c_source.write('\tif (dummy == NULL) printf("XXX:bad user data type.\\n");\n'.replace("XXX", struct_name))
+            c_source.write('\treturn dummy;\n}\n')
+            return
         for line in CHECK:
             c_source.write(line.replace("XXX", struct_name))
         c_source.write("\n")
