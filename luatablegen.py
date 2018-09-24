@@ -562,7 +562,7 @@ class TbgParser(object):
                             if ref_type_node != None:
                                 c_source.write("push_" + ref_type_node.attrib["name"] + "(__ls, _st->" + child.attrib["name"] + ");\n")
                             else:
-                                c_source.write("push_lightuserdata(__ls, _st->" + child.attrib["name"] + ");\n")
+                                c_source.write("lua_pushlightuserdata(__ls, _st->" + child.attrib["name"] + ");\n")
                         # FIXME
                     else: pass
             else:
