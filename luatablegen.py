@@ -274,6 +274,7 @@ def get_elem_count(elem):
 def get_count_node(elem, parent):
     if "count" in elem.attrib:
         count_node_name = elem.attrib["count"][6:]
+    else: return None
     for child in parent:
         if child.tag == count_node_name:
             return child
@@ -581,19 +582,21 @@ class TbgParser(object):
                 if kid.attrib["name"] == field_name: child = kid
             if lua_type == "integer": dummy = "\t"+simple_type_resovler(field_type) +" "+field_name+" = "+"luaL_optinteger(__ls,"+repr(rev_counter)+",0);\n"
             elif lua_type == "lightuserdata":
+                parent_node = get_def_node(struct_name, self.elems)
+                self_node = get_def_node(field_name, parent_node)
+                count = get_elem_count(self_node)
                 if field_type.find("self::") == 0:
-                    parent_node = get_def_node(struct_name, self.elems)
-                    self_node = get_def_node(field_name, parent_node)
-                    count = get_elem_count(self_node)
                     ptr = ""
                     if count != 1: ptr = "*"
                     child_node = get_def_node_tag(field_type[6:], self.elems)
-                    #print("parent node:" + parent_node.attrib["name"])
-                    #print("field type:" + field_type[6:])
-                    #if child_node != None: print("child_node:" + child_node.attrib["name"])
                     dummy = "\t"+child_node.attrib["name"] + ptr +"* "+field_name+" = "+"lua_touserdata(__ls,"+repr(rev_counter)+");\n"
                 else:
-                    dummy = "\t"+field_type +" "+field_name+" = "+"lua_touserdata(__ls,"+repr(rev_counter)+");\n"
+                    ptr = str()
+                    if count != 1: ptr = "*"
+                    if type_resolver(child, self.elems) != field_type:
+                        dummy = "\t"+type_resolver(child, self.elems) + ptr + " "+field_name+" = "+"lua_touserdata(__ls,"+repr(rev_counter)+");\n"
+                    else:
+                        dummy = "\t"+field_type+" "+field_name+" = "+"lua_touserdata(__ls,"+repr(rev_counter)+");\n"
             elif lua_type == "number": pass
             elif lua_type == "string":dummy = "\t"+simple_type_resovler(field_type) +" "+field_name+" = "+"lua_tostring(__ls,"+repr(rev_counter)+");\n"
             elif lua_type == "boolean": pass
@@ -622,23 +625,39 @@ class TbgParser(object):
             c_source.write(GETTER_GEN[0].replace("XXX", struct_name).replace("YYY", field_name))
             c_source.write(GETTER_GEN[1].replace("XXX", struct_name))
             c_source.write(GETTER_GEN[2])
+            parent = get_def_node(struct_name, self.elems)
+            #child = get_def_node(field_name, self.elems)
+            for kid in parent:
+                if field_name == kid.attrib["name"]: child = kid
+            count = get_elem_count(child)
+            count_node = get_count_node(child, parent)
+            count_node_name = str()
+            if count_node != None: count_node_name = count_node.attrib["name"]
+            if not child:
+                for kid in parent:
+                    if kid.attrib["name"] == field_name: child = kid
             if lua_type == "integer": dummy = "\tlua_pushinteger(__ls, dummy->"+field_name+");\n"
-            elif lua_type == "lightuserdata": dummy = "\tlua_pushlightuserdata(__ls, dummy->"+field_name+");\n"
+            elif lua_type == "lightuserdata":
+                if count == 1:
+                    dummy = "\tlua_pushlightuserdata(__ls, dummy->"+field_name+");\n"
+                else:
+                    count_replacer = str()
+                    if count > 1: count_replacer = repr(count)
+                    else:
+                        count_replacer = count_node_name
+                        ref_node_type = get_def_node_tag(child.attrib["type"][6:], self.elems)
+                    dummy = "lua_checkstack(__ls, 3);\nlua_newtable(__ls);\n"
+                    dummy += "for (uint64_t i = 0; i < dummy->" + count_replacer + " ; ++i) {\nlua_pushinteger(__ls, i+1);\n"
+                    if ref_node_type != None:
+                        dummy += ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+"[i]);\nnew_" + ref_node_type.attrib["name"] + "(__ls);\n"
+                    else:
+                        pass
+                        #dummy += ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->YYY[i]);\nnew_" + ref_node_type.attrib["name"] + "(__ls);\n"
+                    dummy += "lua_settable(__ls, -3);\n}\n"
             elif lua_type == "number": dummy = "\tlua_pushnumber(__ls, dummy->"+field_name+");\n"
             elif lua_type == "string": dummy = "\tlua_pushstring(__ls, dummy->"+field_name+");\n"
             elif lua_type == "boolean": dummy = "\tlua_pushboolean(__ls, dummy->"+field_name+");\n"
             elif lua_type == "table":
-                parent = get_def_node(struct_name, self.elems)
-                #child = get_def_node(field_name, self.elems)
-                for kid in parent:
-                    if field_name == kid.attrib["name"]: child = kid
-                count = get_elem_count(child)
-                count_node = get_count_node(child, parent)
-                count_node_name = str()
-                if count_node != None: count_node_name = count_node.attrib["name"]
-                if not child:
-                    for kid in parent:
-                        if kid.attrib["name"] == field_name: child = kid
                 if count == 1:
                     dummy = "\tpush_" + type_resolver(child, self.elems) +"(__ls, dummy->"+field_name+");\n"
                 elif count > 1:
