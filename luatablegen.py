@@ -555,7 +555,7 @@ class TbgParser(object):
                     if childer.attrib["luatype"] == "integer": c_source.write("lua_pushinteger(__ls, _st->" + child.attrib["name"] + ");\n")
                     elif childer.attrib["luatype"] == "number":c_source.write("lua_pushnumber(__ls, _st->" + child.attrib["name"] + ");\n")
                     elif childer.attrib["luatype"] == "string":c_source.write("lua_pushstring(__ls, _st->" + child.attrib["name"] + ");\n")
-                    elif childer.attrib["luatype"] == "table":
+                    elif childer.attrib["luatype"] == "lightuserdata":
                         count = get_elem_count(childer)
                         if count == 1:
                             ref_type_node = get_def_node_tag(childer.attrib["type"][6:], self.elems)
