@@ -559,7 +559,10 @@ class TbgParser(object):
                         count = get_elem_count(childer)
                         if count == 1:
                             ref_type_node = get_def_node_tag(childer.attrib["type"][6:], self.elems)
-                            c_source.write("push_" + ref_type_node.attrib["name"] + "(__ls, _st->" + child.attrib["name"] + ");\n")
+                            if ref_type_node != None:
+                                c_source.write("push_" + ref_type_node.attrib["name"] + "(__ls, _st->" + child.attrib["name"] + ");\n")
+                            else:
+                                c_source.write("push_lightuserdata(__ls, _st->" + child.attrib["name"] + ");\n")
                         # FIXME
                     else: pass
             else:
