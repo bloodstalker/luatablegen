@@ -648,19 +648,19 @@ class TbgParser(object):
             count_node = get_count_node(child, parent)
             count_node_name = str()
             if count_node != None: count_node_name = count_node.attrib["name"]
+            ref_node_type = get_def_node_tag(child.attrib["type"][6:], self.elems)
             if not child:
                 for kid in parent:
                     if kid.attrib["name"] == field_name: child = kid
             if lua_type == "integer": dummy = "\tlua_pushinteger(__ls, dummy->"+field_name+");\n"
             elif lua_type == "lightuserdata":
                 if count == 1:
-                    dummy = "\tlua_pushlightuserdata(__ls, dummy->"+field_name+");\n"
+                    dummy = ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+");\nnew_" + ref_node_type.attrib["name"] + "(__ls);\n"
                 else:
                     count_replacer = str()
                     if count > 1: count_replacer = repr(count)
                     else:
                         count_replacer = count_node_name
-                        ref_node_type = get_def_node_tag(child.attrib["type"][6:], self.elems)
                     dummy = "lua_checkstack(__ls, 3);\nlua_newtable(__ls);\n"
                     dummy += "for (uint64_t i = 0; i < dummy->" + count_replacer + " ; ++i) {\nlua_pushinteger(__ls, i+1);\n"
                     if ref_node_type != None:
