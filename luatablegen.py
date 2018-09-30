@@ -200,6 +200,43 @@ def simple_type_resovler(type_str):
         return "void*"
     else: return type_str
 
+def get_eq_lua_type(type_str):
+    if type_str == "int8":
+        return "integer"
+    elif type_str == "uint8":
+        return "integer"
+    elif type_str == "int16":
+        return "integer"
+    elif type_str == "uint16":
+        return "integer"
+    elif type_str == "int32":
+        return "integer"
+    elif type_str == "uint32":
+        return "integer"
+    elif type_str == "int64":
+        return "integer"
+    elif type_str == "uint64":
+        return "integer"
+    elif type_str == "int128":
+        return "integer"
+    elif type_str == "uint128":
+        return "integer"
+    elif type_str == "float":
+        return "number"
+    elif type_str == "double":
+        return "number"
+    elif type_str == "bool":
+        return "integer"
+    elif type_str == "uchar":
+        return "integer"
+    elif type_str == "schar":
+        return "integer"
+    elif type_str == "string":
+        return "string"
+    elif type_str == "FT::conditional":
+        return "lightuserdata"
+    else: return None
+
 def type_resolver(elem, elem_list):
     if "isaggregate" in elem.attrib:
         type_str = elem.attrib["name"]
@@ -636,7 +673,7 @@ class TbgParser(object):
 
     def getter(self, c_source, struct_name, field_names, field_types, lua_types):
         dummy = str()
-        for field_name, lua_type in zip(field_names, lua_types):
+        for field_name, lua_type, field_type in zip(field_names, lua_types, field_types):
             c_source.write(GETTER_GEN[0].replace("XXX", struct_name).replace("YYY", field_name))
             c_source.write(GETTER_GEN[1].replace("XXX", struct_name))
             c_source.write(GETTER_GEN[2])
@@ -666,8 +703,8 @@ class TbgParser(object):
                     if ref_node_type != None:
                         dummy += ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+"[i]);\nnew_" + ref_node_type.attrib["name"] + "(__ls);\n"
                     else:
-                        pass
-                        #dummy += ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->YYY[i]);\nnew_" + ref_node_type.attrib["name"] + "(__ls);\n"
+                        eq_lua_type = get_eq_lua_type(field_type)
+                        dummy += "lua_push"+eq_lua_type+"(__ls, dummy->"+field_name+"[i]);\n"
                     dummy += "lua_settable(__ls, -3);\n}\n"
             elif lua_type == "number": dummy = "\tlua_pushnumber(__ls, dummy->"+field_name+");\n"
             elif lua_type == "string": dummy = "\tlua_pushstring(__ls, dummy->"+field_name+");\n"
