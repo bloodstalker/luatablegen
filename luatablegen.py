@@ -664,12 +664,13 @@ class TbgParser(object):
                     cond_node = get_def_node_tag(child.attrib["condition"][6:], parent)
                     lua_eq_type = get_eq_lua_type(kind.attrib["type"])
                     push = str()
-                    if lua_eq_type == "integer": push = child.attrib["name"]+"=luaL_optinteger(__ls,"+repr(rev_counter)+",0);\n"
-                    elif lua_eq_type == "number":push = child.attrib["name"]+"=lua_tonumber(__ls,"+repr(rev_counter)+");\n"
-                    elif lua_eq_type == "string":push = child.attrib["name"]+"=lua_tostring(__ls,"+repr(rev_counter)+");\n"
-                    elif lua_eq_type == "lightuserdata":push = child.attrib["name"]+"=lua_touserdata(__ls,"+repr(rev_counter)+");\n"
-                    elif lua_eq_type == None:push = child.attrib["name"]+"=lua_touserdata(__ls,"+repr(rev_counter)+");\n"
-                    else: print("this was not supposed to happen...")
+                    #if lua_eq_type == "integer": push = child.attrib["name"]+"=luaL_optinteger(__ls,"+repr(rev_counter)+",0);\n"
+                    #elif lua_eq_type == "number":push = child.attrib["name"]+"=lua_tonumber(__ls,"+repr(rev_counter)+");\n"
+                    #elif lua_eq_type == "string":push = child.attrib["name"]+"=lua_tostring(__ls,"+repr(rev_counter)+");\n"
+                    #elif lua_eq_type == "lightuserdata":push = child.attrib["name"]+"=lua_touserdata(__ls,"+repr(rev_counter)+");\n"
+                    #elif lua_eq_type == None:push = child.attrib["name"]+"=lua_touserdata(__ls,"+repr(rev_counter)+");\n"
+                    #else: print("this was not supposed to happen...")
+                    push = child.attrib["name"]+"=lua_touserdata(__ls,"+repr(rev_counter)+");\n"
                     dummy += "if (" + cond_node.attrib["name"] + " ==" + kind.text+ ") {"+push+"}\n"
                 #dummy = "void* " + child.attrib["name"] + "=" + self.gen_luato_generic(struct_name, field_name, rev_counter)
             else:
@@ -742,7 +743,7 @@ class TbgParser(object):
                     elif lua_eq_type == "lightuserdata": push = ""
                     elif lua_eq_type == None:
                         type_node = get_def_node_tag(kind.attrib["type"][6:], self.elems)
-                        print(kind.attrib["type"])
+                        #print(kind.attrib["type"])
                         push = type_node.attrib["name"]+"_push_args(__ls, dummy->"+child.attrib["name"]+");\n"
                         push += "new_" + type_node.attrib["name"] + "(__ls);\n"
                     else: print("this was not supposed to happen...")
