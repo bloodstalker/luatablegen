@@ -657,7 +657,21 @@ class TbgParser(object):
                 temp2 = self.gen_luato_generic(struct_name, field_name, rev_counter)
                 dummy = temp[0] + "=" + temp2
             elif lua_type == "conditional":
-                dummy = "void* " + child.attrib["name"] + "=" + self.gen_luato_generic(struct_name, field_name, rev_counter)
+                dummy = "void*" + child.attrib["name"] + ";\n"
+                for kind in child:
+                    #print(kind.tag)
+                    #print(child.attrib["condition"][6:])
+                    cond_node = get_def_node_tag(child.attrib["condition"][6:], parent)
+                    lua_eq_type = get_eq_lua_type(kind.attrib["type"])
+                    push = str()
+                    if lua_eq_type == "integer": push = child.attrib["name"]+"=luaL_optinteger(__ls,"+repr(rev_counter)+",0);\n"
+                    elif lua_eq_type == "number":push = child.attrib["name"]+"=lua_tonumber(__ls,"+repr(rev_counter)+");\n"
+                    elif lua_eq_type == "string":push = child.attrib["name"]+"=lua_tostring(__ls,"+repr(rev_counter)+");\n"
+                    elif lua_eq_type == "lightuserdata":push = child.attrib["name"]+"=lua_touserdata(__ls,"+repr(rev_counter)+");\n"
+                    elif lua_eq_type == None:push = child.attrib["name"]+"=lua_touserdata(__ls,"+repr(rev_counter)+");\n"
+                    else: print("this was not supposed to happen...")
+                    dummy += "if (" + cond_node.attrib["name"] + " ==" + kind.text+ ") {"+push+"}\n"
+                #dummy = "void* " + child.attrib["name"] + "=" + self.gen_luato_generic(struct_name, field_name, rev_counter)
             else:
                 print("bad lua_type entry in the json file")
                 sys.exit(1)
@@ -717,7 +731,22 @@ class TbgParser(object):
                 else:
                     dummy = "\tpushluatable_" + type_resolver(child, self.elems) +"(__ls, dummy->"+field_name+", dummy->"+count_node_name+");\n"
             elif lua_type == "conditional":
-                pass
+                #FIXME-wont work properly for counts greater than 1
+                for kind in child:
+                    cond_node = get_def_node_tag(child.attrib["condition"][6:], parent)
+                    lua_eq_type = get_eq_lua_type(kind.attrib["type"])
+                    push = str()
+                    if lua_eq_type == "integer": push = "lua_pushinteger(__ls, dummy->"+child.attrib["name"]+");\n"
+                    elif lua_eq_type == "number": push = "lua_pushnumber(__ls, dummy->"+child.attrib["name"]+");\n"
+                    elif lua_eq_type == "string": push = "lua_pushstring(__ls, dummy->"+child.attrib["name"]+");\n"
+                    elif lua_eq_type == "lightuserdata": push = ""
+                    elif lua_eq_type == None:
+                        type_node = get_def_node_tag(kind.attrib["type"][6:], self.elems)
+                        print(kind.attrib["type"])
+                        push = type_node.attrib["name"]+"_push_args(__ls, dummy->"+child.attrib["name"]+");\n"
+                        push += "new_" + type_node.attrib["name"] + "(__ls);\n"
+                    else: print("this was not supposed to happen...")
+                    dummy += "if (dummy->" + cond_node.attrib["name"] + " ==" + kind.text+ ") {"+push+"}\n"
             else:
                 print("bad lua_type entry in the json file")
                 sys.exit(1)
