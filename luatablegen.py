@@ -157,9 +157,9 @@ def lua_type_resolver(type_str):
     elif type_str == "bool":
         return "integer"
     elif type_str == "uchar":
-        return "number"
+        return "integer"
     elif type_str == "schar":
-        return "number"
+        return "integer"
     elif type_str == "string":
         return "string"
     else: return "lightuserdata"
@@ -719,7 +719,7 @@ class TbgParser(object):
                     dummy += "for (uint64_t i = 0; i < dummy->" + count_replacer + " ; ++i) {\nlua_pushinteger(__ls, i+1);\n"
                     if ref_node_type != None:
                         dummy += "if (dummy->" +field_name+ "[i] != NULL) {\n"
-                        dummy += ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+"[i]);\n"+"} else {\nlua_pop(__ls, 1);\n break;\n}"
+                        dummy += ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+"[i]);\n"+"} else {\nlua_pop(__ls, 1);\n continue;\n}"
                         dummy += "new_" + ref_node_type.attrib["name"] + "(__ls);\n"
                     else:
                         eq_lua_type = get_eq_lua_type(field_type)
@@ -763,10 +763,39 @@ class TbgParser(object):
     def setter(self, c_source, struct_name, field_names, field_types, lua_types):
         dummy = str()
         for field_name, lua_type in zip(field_names, lua_types):
+            parent = get_def_node(struct_name, self.elems)
+            node = get_def_node(field_name, parent)
+            type_node = get_def_node_tag(node.attrib["type"][6:], self.elems)
+            count = get_elem_count(node)
             c_source.write(SETTER_GEN[0].replace("XXX", struct_name).replace("YYY", field_name))
             c_source.write(SETTER_GEN[1].replace("XXX", struct_name))
             if lua_type == "integer": dummy = "\tdummy->" + field_name + " = " + "luaL_checkinteger(__ls, 2);\n"
-            elif lua_type == "lightuserdata": dummy ="\tdummy->" + field_name + " = " + "luaL_checkudata(__ls, 2, "+'"'+field_name+"_t"+'"'+");\n"
+            elif lua_type == "lightuserdata":
+                if type_node != None:
+                    type_replacement = type_node.attrib["name"]
+                else:
+                    type_replacement = simple_type_resovler(node.attrib["type"])
+                #dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ ")*table_length,1);\n"
+                if count == 1:
+                    dummy += "free(dummy->" + field_name + ");\n"
+                    dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ "),1);\n"
+                    dummy += "dummy->" + field_name + "= luaL_checkudata(__ls, -1,\""+type_replacement+"\");\n"
+                    dummy += "lua_pop(__ls, 1);\n"
+                else:
+                    dummy = "if (!lua_checkstack(__ls, 3)) {printf(\"error\"\n);return 0;}\n"
+                    dummy += "int table_length = lua_rawlen(__ls, 2);\nfree(dummy->"+field_name+");\n"
+                    dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ ")*table_length,1);\n"
+                    dummy += "for (int i = 1; i <= table_length; ++i) {\n lua_rawgeti(__ls, 2, i);\n"
+                    real_type = node.attrib["type"]
+                    real_type_string = lua_type_resolver(real_type)
+                    if real_type_string == "lightuserdata":
+                        dummy += "dummy->" + field_name + "[i-1] = luaL_checkudata(__ls , -1, \""+type_replacement+"\");\n"
+                    elif real_type_string == "integer":
+                        dummy += "dummy->" + field_name + "[i-1] = luaL_checkinteger(__ls , -1);\n"
+                    elif real_type_string == "string":
+                        dummy += "dummy->" + field_name + "[i-1] = luaL_checkstring(__ls , -1);\n"
+                    dummy += "lua_pop(__ls, 1);\n}\n"
+
             elif lua_type == "number": dummy ="\tdummy->" + field_name + " = " + "luaL_checknumber(__ls, 2);\n"
             elif lua_type == "string": dummy ="\tdummy->" + field_name + " = " + "luaL_checkstring(__ls, 2);\n"
             elif lua_type == "boolean": pass
@@ -784,6 +813,7 @@ class TbgParser(object):
 
     def gc(self):
         pass
+
     def tostring(self):
         pass
 
