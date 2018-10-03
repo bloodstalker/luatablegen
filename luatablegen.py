@@ -718,7 +718,9 @@ class TbgParser(object):
                     dummy = "lua_checkstack(__ls, 3);\nlua_newtable(__ls);\n"
                     dummy += "for (uint64_t i = 0; i < dummy->" + count_replacer + " ; ++i) {\nlua_pushinteger(__ls, i+1);\n"
                     if ref_node_type != None:
-                        dummy += ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+"[i]);\nnew_" + ref_node_type.attrib["name"] + "(__ls);\n"
+                        dummy += "if (dummy->" +field_name+ "[i] != NULL) {\n"
+                        dummy += ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+"[i]);\n"+"} else {\nlua_pop(__ls, 1);\n break;\n}"
+                        dummy += "new_" + ref_node_type.attrib["name"] + "(__ls);\n"
                     else:
                         eq_lua_type = get_eq_lua_type(field_type)
                         dummy += "lua_push"+eq_lua_type+"(__ls, dummy->"+field_name+"[i]);\n"
