@@ -812,7 +812,22 @@ class TbgParser(object):
         c_source.write("\n")
 
     def gc(self):
-        pass
+        dummy = str()
+        for field_name, lua_type in zip(field_names, lua_types):
+            parent = get_def_node(struct_name, self.elems)
+            node = get_def_node(field_name, parent)
+            type_node = get_def_node_tag(node.attrib["type"][6:], self.elems)
+            count = get_elem_count(node)
+            if lua_type == "integer": pass
+            elif lua_type == "lightuserdata": pass
+            elif lua_type == "number": pass
+            elif lua_type == "string": pass
+            elif lua_type == "boolean": pass
+            elif lua_type == "table": pass
+            elif lua_type == "conditional": pass
+            c_source.write(dummy)
+            dummy = str()
+        c_source.write("\n")
 
     def tostring(self):
         pass
@@ -1057,7 +1072,7 @@ class TbgParser(object):
             d_source.write("_" + self.time + "_")
         if self.argparser.args.lualibpath:
             #l_source = open(self.argparser.args.lualibpath, "w")
-            l_source.write(LUA_LIB[0].replace("XXX", self.argparser.args.lualibname))
+            l_source.write(LUA_LIB[1].replace("XXX", self.argparser.args.lualibname))
 
 # write code here
 def premain(argparser):
