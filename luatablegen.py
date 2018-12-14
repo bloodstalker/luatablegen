@@ -318,6 +318,28 @@ def get_count_node(elem, parent):
             return child
     return None
 
+# FIXME-incomplete
+def get_lua_push_func(gen_type):
+    if gen_type == "integer": return "lua_pushinteger(__ls, XXX)"
+    elif gen_type == "string": return "lua_pushstring(__ls, XXX)"
+    elif gen_type == "number": return "lua_pushnumber(__ls, XXX)"
+    else: return None
+
+def get_lua_pop_func(gen_type):
+    if gen_type == "integer": return "lua_tointeger(__ls, XXX)"
+    elif gen_type == "string": return "lua_tostring(__ls, XXX)"
+    elif gen_type == "number": return "lua_tonumber(__ls, XXX)"
+    else: return None
+
+def get_cond_node(elem, parent):
+    if "condition" in elem.attrib:
+        cond_node_name = elem.attrib["condition"][6:]
+        for child in parent:
+            if child.tag == cond_node_name:
+                return child
+    else:
+        return None
+
 def SigHandler_SIGINT(signum, frame):
     print()
     sys.exit(0)
@@ -795,13 +817,51 @@ class TbgParser(object):
                     elif real_type_string == "string":
                         dummy += "dummy->" + field_name + "[i-1] = luaL_checkstring(__ls , -1);\n"
                     dummy += "lua_pop(__ls, 1);\n}\n"
-
             elif lua_type == "number": dummy ="\tdummy->" + field_name + " = " + "luaL_checknumber(__ls, 2);\n"
             elif lua_type == "string": dummy ="\tdummy->" + field_name + " = " + "luaL_checkstring(__ls, 2);\n"
             elif lua_type == "boolean": pass
             elif lua_type == "table": dummy = "\t;\n"
             elif lua_type == "conditional":
-                pass
+                if type_node != None:
+                    type_replacement = type_node.attrib["name"]
+                else:
+                    type_replacement = simple_type_resovler(node.attrib["type"])
+                cond_node = get_cond_node(node, parent)
+                if count == 1:
+                    dummy += "free(dummy->" + field_name + ");\n"
+                    for con_child in node:
+                        child_def_node = get_def_node(con_child.attrib["type"][6:], self.elems)
+                        dummy += "if (dummy->"+cond_node.attrib["name"]+" == "+con_child.text+"){"
+                        if child_def_node:
+                            dummy += "dummy->" +field_name+ "=calloc(sizeof(" +child_def_node.attrib["name"]+ "),1);\n"
+                            dummy += "dummy->" + field_name + "= luaL_checkudata(__ls, -1,\""+child_def_node.attrib["name"]+"\");}\n"
+                        else:
+                            con_child_type_node = get_def_node_tag(con_child.attrib["type"][6:], self.elems)
+                            if con_child_type_node: # for user-defined structs
+                                dummy += "dummy->" +field_name+ "=calloc(sizeof(" +con_child_type_node.attrib["name"]+ "),1);\n"
+                                dummy += "dummy->" + field_name + "= luaL_checkudata(__ls, -1,\""+con_child_type_node.attrib["name"]+"\");}\n"
+                            else: #for simple types
+                                real_type_string = lua_type_resolver(con_child.attrib["type"])
+                                dummy += "dummy->" +field_name+ "=calloc(sizeof(" +simple_type_resovler(con_child.attrib["type"])+ "),1);\n"
+                                print(real_type_string)
+                                lua_push_func_str = get_lua_pop_func(real_type_string)
+                                dummy += "dummy->" + field_name + "="+ lua_push_func_str.replace("XXX", "-1")+";}\n"
+                    dummy += "lua_pop(__ls, 1);\n"
+                # FIXME- not implemented for count greater than one
+                else:
+                    dummy = "if (!lua_checkstack(__ls, 3)) {printf(\"error\"\n);return 0;}\n"
+                    dummy += "int table_length = lua_rawlen(__ls, 2);\nfree(dummy->"+field_name+");\n"
+                    dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ ")*table_length,1);\n"
+                    dummy += "for (int i = 1; i <= table_length; ++i) {\n lua_rawgeti(__ls, 2, i);\n"
+                    real_type = node.attrib["type"]
+                    real_type_string = lua_type_resolver(real_type)
+                    if real_type_string == "lightuserdata":
+                        dummy += "dummy->" + field_name + "[i-1] = luaL_checkudata(__ls , -1, \""+type_replacement+"\");\n"
+                    elif real_type_string == "integer":
+                        dummy += "dummy->" + field_name + "[i-1] = luaL_checkinteger(__ls , -1);\n"
+                    elif real_type_string == "string":
+                        dummy += "dummy->" + field_name + "[i-1] = luaL_checkstring(__ls , -1);\n"
+                    dummy += "lua_pop(__ls, 1);\n}\n"
             else:
                 print("bad lua_type entry in the json file")
                 sys.exit(1)
