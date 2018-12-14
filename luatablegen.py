@@ -843,7 +843,6 @@ class TbgParser(object):
                             else: #for simple types
                                 real_type_string = lua_type_resolver(con_child.attrib["type"])
                                 dummy += "dummy->" +field_name+ "=calloc(sizeof(" +simple_type_resovler(con_child.attrib["type"])+ "),1);\n"
-                                print(real_type_string)
                                 lua_push_func_str = get_lua_pop_func(real_type_string)
                                 dummy += "dummy->" + field_name + "="+ lua_push_func_str.replace("XXX", "-1")+";}\n"
                     dummy += "lua_pop(__ls, 1);\n"
