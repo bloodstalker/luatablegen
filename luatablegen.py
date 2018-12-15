@@ -799,7 +799,7 @@ class TbgParser(object):
                     type_replacement = simple_type_resovler(node.attrib["type"])
                 #dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ ")*table_length,1);\n"
                 if count == 1:
-                    dummy += "free(dummy->" + field_name + ");\n"
+                    #dummy += "free(dummy->" + field_name + ");\n"
                     dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ "),1);\n"
                     dummy += "dummy->" + field_name + "= luaL_checkudata(__ls, -1,\""+type_replacement+"\");\n"
                     dummy += "lua_pop(__ls, 1);\n"
@@ -846,7 +846,7 @@ class TbgParser(object):
                                 dummy += "dummy->" +field_name+ "=calloc(sizeof(" +simple_type_resovler(con_child.attrib["type"])+ "),1);\n"
                                 lua_push_func_str = get_lua_pop_func(real_type_string)
                                 dummy += "dummy->" + field_name + "="+ lua_push_func_str.replace("XXX", "-1")+";}\n"
-                    dummy += "lua_pop(__ls, 1);\n"
+                    #dummy += "lua_pop(__ls, 1);\n"
                 # FIXME- not implemented for count greater than one
                 else:
                     dummy = "if (!lua_checkstack(__ls, 3)) {printf(\"error\"\n);return 0;}\n"
