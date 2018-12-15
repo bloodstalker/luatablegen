@@ -828,7 +828,8 @@ class TbgParser(object):
                     type_replacement = simple_type_resovler(node.attrib["type"])
                 cond_node = get_cond_node(node, parent)
                 if count == 1:
-                    dummy += "free(dummy->" + field_name + ");\n"
+                    #-FIXME i should really do something about memory management.this is getting out of hand...
+                    #dummy += "free(dummy->" + field_name + ");\n"
                     for con_child in node:
                         child_def_node = get_def_node(con_child.attrib["type"][6:], self.elems)
                         dummy += "if (dummy->"+cond_node.attrib["name"]+" == "+con_child.text+"){"
