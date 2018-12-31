@@ -770,8 +770,11 @@ class TbgParser(object):
                     elif lua_eq_type == None:
                         type_node = get_def_node_tag(kind.attrib["type"][6:], self.elems)
                         #print(kind.attrib["type"])
-                        push = type_node.attrib["name"]+"_push_args(__ls, dummy->"+child.attrib["name"]+");\n"
-                        push += "new_" + type_node.attrib["name"] + "(__ls);\n"
+                        #push = type_node.attrib["name"]+"_push_args(__ls, dummy->"+child.attrib["name"]+");\n"
+                        #push += "new_" + type_node.attrib["name"] + "(__ls);\n"
+                        push = "lua_pushlightuserdata(__ls, dummy->"+child.attrib["name"]+");\n"
+                        push += 'luaL_getmetatable(__ls, "'+type_node.attrib["name"]+'");\n'
+                        push += "lua_setmetatable(__ls, -2);\n"
                     else: print("this was not supposed to happen...")
                     dummy += "if (dummy->" + cond_node.attrib["name"] + " ==" + kind.text+ ") {"+push+"}\n"
             else:
