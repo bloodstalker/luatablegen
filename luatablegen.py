@@ -23,10 +23,15 @@ CONVERT = ['static XXX* convert_XXX (lua_State* __ls, int index) {\n',
            '\treturn dummy;\n}\n']
 CHECK = ['static XXX* check_XXX(lua_State* __ls, int index) {\n',
         '\tXXX* dummy;\n',
-        '\tluaL_checktype(__ls, index, LUA_TUSERDATA);\n'
         '\tdummy = (XXX*)luaL_checkudata(__ls, index, "XXX");\n',
         '\tif (dummy == NULL) printf("XXX:bad user data type.\\n");\n',
         '\treturn dummy;\n}\n']
+#CHECK = ['static XXX* check_XXX(lua_State* __ls, int index) {\n',
+#        '\tXXX* dummy;\n',
+#        '\tluaL_checktype(__ls, index, LUA_TUSERDATA);\n'
+#        '\tdummy = (XXX*)luaL_checkudata(__ls, index, "XXX");\n',
+#        '\tif (dummy == NULL) printf("XXX:bad user data type.\\n");\n',
+#        '\treturn dummy;\n}\n']
 PUSH_SELF = [ 'XXX* push_XXX(lua_State* __ls) {\n',
             '\tlua_checkstack(__ls, 1);\n',
             '\tXXX* dummy = lua_newuserdata(__ls, sizeof(XXX));\n',
@@ -837,16 +842,16 @@ class TbgParser(object):
                         child_def_node = get_def_node(con_child.attrib["type"][6:], self.elems)
                         dummy += "if (dummy->"+cond_node.attrib["name"]+" == "+con_child.text+"){"
                         if child_def_node:
-                            dummy += "dummy->" +field_name+ "=calloc(sizeof(" +child_def_node.attrib["name"]+ "),1);\n"
+                            #dummy += "dummy->" +field_name+ "=calloc(sizeof(" +child_def_node.attrib["name"]+ "),1);\n"
                             dummy += "dummy->" + field_name + "= luaL_checkudata(__ls, -1,\""+child_def_node.attrib["name"]+"\");}\n"
                         else:
                             con_child_type_node = get_def_node_tag(con_child.attrib["type"][6:], self.elems)
                             if con_child_type_node: # for user-defined structs
-                                dummy += "dummy->" +field_name+ "=calloc(sizeof(" +con_child_type_node.attrib["name"]+ "),1);\n"
+                                #dummy += "dummy->" +field_name+ "=calloc(sizeof(" +con_child_type_node.attrib["name"]+ "),1);\n"
                                 dummy += "dummy->" + field_name + "= luaL_checkudata(__ls, -1,\""+con_child_type_node.attrib["name"]+"\");}\n"
                             else: #for simple types
                                 real_type_string = lua_type_resolver(con_child.attrib["type"])
-                                dummy += "dummy->" +field_name+ "=calloc(sizeof(" +simple_type_resovler(con_child.attrib["type"])+ "),1);\n"
+                                #dummy += "dummy->" +field_name+ "=calloc(sizeof(" +simple_type_resovler(con_child.attrib["type"])+ "),1);\n"
                                 lua_push_func_str = get_lua_pop_func(real_type_string)
                                 dummy += "dummy->" + field_name + "="+ lua_push_func_str.replace("XXX", "-1")+";}\n"
                     #dummy += "lua_pop(__ls, 1);\n"
