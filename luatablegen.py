@@ -736,7 +736,11 @@ class TbgParser(object):
             if lua_type == "integer": dummy = "\tlua_pushinteger(__ls, dummy->"+field_name+");\n"
             elif lua_type == "lightuserdata":
                 if count == 1:
-                    dummy = ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+");\nnew_" + ref_node_type.attrib["name"] + "(__ls);\n"
+                    dummy = "lua_pushlightuserdata(__ls, dummy->"+child.attrib["name"]+");\n"
+                    dummy += 'lua_getmetatable(__ls, "'+ref_node_type.attrib["name"]+'");\n'
+                    dummy += "lua_setmetatable(__ls, -2);\n"
+                    #dummy = ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+");\nnew_" + ref_node_type.attrib["name"] + "(__ls);\n"
+                #FIXME
                 else:
                     count_replacer = str()
                     if count > 1: count_replacer = repr(count)
