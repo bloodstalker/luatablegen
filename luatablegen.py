@@ -750,8 +750,12 @@ class TbgParser(object):
                     dummy += "for (uint64_t i = 0; i < dummy->" + count_replacer + " ; ++i) {\nlua_pushinteger(__ls, i+1);\n"
                     if ref_node_type != None:
                         dummy += "if (dummy->" +field_name+ "[i] != NULL) {\n"
-                        dummy += ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+"[i]);\n"+"} else {\nlua_pop(__ls, 1);\n continue;\n}"
-                        dummy += "new_" + ref_node_type.attrib["name"] + "(__ls);\n"
+                        #dummy += ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+"[i]);\n"+"} else {\nlua_pop(__ls, 1);\n continue;\n}"
+                        #dummy += "new_" + ref_node_type.attrib["name"] + "(__ls);\n"
+                        dummy += "lua_pushlightuserdata(__ls, dummy->"+field_name+"[i]);\n"
+                        dummy += 'luaL_getmetatable(__ls,"'+ref_node_type.attrib["name"]+'");\n'
+                        dummy += "lua_setmetatable(__ls, -2);\n"
+                        dummy += "} else {\nlua_pop(__ls, 1);\n continue;\n}"
                     else:
                         eq_lua_type = get_eq_lua_type(field_type)
                         dummy += "lua_push"+eq_lua_type+"(__ls, dummy->"+field_name+"[i]);\n"
@@ -862,8 +866,9 @@ class TbgParser(object):
                 # FIXME- not implemented for count greater than one
                 else:
                     dummy = "if (!lua_checkstack(__ls, 3)) {printf(\"error\"\n);return 0;}\n"
-                    dummy += "int table_length = lua_rawlen(__ls, 2);\nfree(dummy->"+field_name+");\n"
-                    dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ ")*table_length,1);\n"
+                    dummy += "int table_length = lua_rawlen(__ls, 2);\n"
+                    #dummy += "free(dummy->"+field_name+");\n"
+                    #dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ ")*table_length,1);\n"
                     dummy += "for (int i = 1; i <= table_length; ++i) {\n lua_rawgeti(__ls, 2, i);\n"
                     real_type = node.attrib["type"]
                     real_type_string = lua_type_resolver(real_type)
