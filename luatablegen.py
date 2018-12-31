@@ -737,7 +737,7 @@ class TbgParser(object):
             elif lua_type == "lightuserdata":
                 if count == 1:
                     dummy = "lua_pushlightuserdata(__ls, dummy->"+child.attrib["name"]+");\n"
-                    dummy += 'lua_getmetatable(__ls, "'+ref_node_type.attrib["name"]+'");\n'
+                    dummy += 'luaL_getmetatable(__ls, "'+ref_node_type.attrib["name"]+'");\n'
                     dummy += "lua_setmetatable(__ls, -2);\n"
                     #dummy = ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+");\nnew_" + ref_node_type.attrib["name"] + "(__ls);\n"
                 #FIXME
@@ -812,7 +812,7 @@ class TbgParser(object):
                 #dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ ")*table_length,1);\n"
                 if count == 1:
                     #dummy += "free(dummy->" + field_name + ");\n"
-                    dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ "),1);\n"
+                    #dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ "),1);\n"
                     dummy += "dummy->" + field_name + "= luaL_checkudata(__ls, -1,\""+type_replacement+"\");\n"
                     dummy += "lua_pop(__ls, 1);\n"
                 else:
