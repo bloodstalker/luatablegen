@@ -33,10 +33,13 @@ CHECK = ['static XXX* check_XXX(lua_State* __ls, int index) {\n',
 #        '\tif (dummy == NULL) printf("XXX:bad user data type.\\n");\n',
 #        '\treturn dummy;\n}\n']
 PUSH_SELF = [ 'XXX* push_XXX(lua_State* __ls) {\n',
-            '\tlua_checkstack(__ls, 1);\n',
+            '\tlua_checkstack(__ls, 3);\n',
             '\tXXX* dummy = lua_newuserdata(__ls, sizeof(XXX));\n',
             '\tluaL_getmetatable(__ls, "XXX");\n',
             '\tlua_setmetatable(__ls, -2);\n',
+            '\tlua_pushlightuserdata(__ls, dummy);\n',
+            '\tlua_pushvalue(__ls, -2);\n',
+            '\tlua_settable(__ls, LUA_REGISTRYINDEX);\n',
             '\treturn dummy;\n}\n']
 PUSH_ARGS = ['int XXX_push_args(lua_State* __ls, XXX* _st) {\n',
              '\tlua_checkstack(__ls, NNN);\n', '\treturn NNN;\n}\n']
@@ -737,8 +740,9 @@ class TbgParser(object):
             elif lua_type == "lightuserdata":
                 if count == 1:
                     dummy = "lua_pushlightuserdata(__ls, dummy->"+child.attrib["name"]+");\n"
-                    dummy += 'luaL_getmetatable(__ls, "'+ref_node_type.attrib["name"]+'");\n'
-                    dummy += "lua_setmetatable(__ls, -2);\n"
+                    dummy += "lua_gettable(__ls, LUA_REGISTRYINDEX);\n"
+                    #dummy += 'luaL_getmetatable(__ls, "'+ref_node_type.attrib["name"]+'");\n'
+                    #dummy += "lua_setmetatable(__ls, -2);\n"
                     #dummy = ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+");\nnew_" + ref_node_type.attrib["name"] + "(__ls);\n"
                 #FIXME
                 else:
@@ -786,8 +790,9 @@ class TbgParser(object):
                         #push = type_node.attrib["name"]+"_push_args(__ls, dummy->"+child.attrib["name"]+");\n"
                         #push += "new_" + type_node.attrib["name"] + "(__ls);\n"
                         push = "lua_pushlightuserdata(__ls, dummy->"+child.attrib["name"]+");\n"
-                        push += 'luaL_getmetatable(__ls, "'+type_node.attrib["name"]+'");\n'
-                        push += "lua_setmetatable(__ls, -2);\n"
+                        push += "lua_gettable(__ls, LUA_REGISTRYINDEX);\n"
+                        #push += 'luaL_getmetatable(__ls, "'+type_node.attrib["name"]+'");\n'
+                        #push += "lua_setmetatable(__ls, -2);\n"
                     else: print("this was not supposed to happen...")
                     dummy += "if (dummy->" + cond_node.attrib["name"] + " ==" + kind.text+ ") {"+push+"}\n"
             else:
