@@ -754,11 +754,10 @@ class TbgParser(object):
                     dummy += "for (uint64_t i = 0; i < dummy->" + count_replacer + " ; ++i) {\nlua_pushinteger(__ls, i+1);\n"
                     if ref_node_type != None:
                         dummy += "if (dummy->" +field_name+ "[i] != NULL) {\n"
-                        #dummy += ref_node_type.attrib["name"]+ "_push_args(__ls, dummy->"+field_name+"[i]);\n"+"} else {\nlua_pop(__ls, 1);\n continue;\n}"
-                        #dummy += "new_" + ref_node_type.attrib["name"] + "(__ls);\n"
                         dummy += "lua_pushlightuserdata(__ls, dummy->"+field_name+"[i]);\n"
-                        dummy += 'luaL_getmetatable(__ls,"'+ref_node_type.attrib["name"]+'");\n'
-                        dummy += "lua_setmetatable(__ls, -2);\n"
+                        dummy += "lua_gettable(__ls, LUA_REGISTRYINDEX);\n"
+                        #dummy += 'luaL_getmetatable(__ls,"'+ref_node_type.attrib["name"]+'");\n'
+                        #dummy += "lua_setmetatable(__ls, -2);\n"
                         dummy += "} else {\nlua_pop(__ls, 1);\n continue;\n}"
                     else:
                         eq_lua_type = get_eq_lua_type(field_type)
