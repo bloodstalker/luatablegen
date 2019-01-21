@@ -672,7 +672,10 @@ class TbgParser(object):
         dummy = str()
         rev_counter = -len(field_types)
         c_source.write(NEW[0].replace("XXX", struct_name))
-        c_source.write("\tlua_checkstack(__ls, " + repr(len(field_names)) + ");\n")
+        if not field_names:
+            c_source.write("\tlua_checkstack(__ls, 1);\n")
+        else:
+            c_source.write("\tlua_checkstack(__ls, " + repr(len(field_names)) + ");\n")
         if not field_names:
             orig_node = get_def_node(struct_name, self.elems)
             lua_type = orig_node.attrib["luatype"]
@@ -733,7 +736,10 @@ class TbgParser(object):
             rev_counter += 1
             c_source.write(dummy)
             dummy = str()
-        c_source.write("lua_pop(__ls,"+repr(len(field_types))+");\n")
+        if not field_names:
+            c_source.write("lua_pop(__ls,1);\n")
+        else:
+            c_source.write("lua_pop(__ls,"+repr(len(field_types))+");\n")
         c_source.write(NEW[2].replace("XXX", struct_name))
         for field_name in field_names:
             c_source.write("\tdummy->" + field_name + " = " + field_name + ";\n")
