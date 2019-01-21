@@ -58,12 +58,12 @@ REGISTER_TABLE_METHODS = ['static const luaL_Reg XXX_methods[] = {\n',
 REGISTER_META = ['static const luaL_Reg XXX_meta[] = {\n',
                  '\t{0, 0}\n};\n']
 # table register for global lua tables
-TABLE_REGISTER_G =  ['int XXX_register(lua_State* __ls) {\n',
+TABLE_REGISTER_G =  ['int XXX_register(lua_State* __ls, char* reg_str) {\n',
   'lua_checkstack(__ls, 4);\n'
   'lua_newtable(__ls);\n',
   'luaL_setfuncs(__ls, XXX_methods, 0);\n',
   'lua_setglobal(__ls, "XXX");\n',
-  'luaL_newmetatable(__ls, "XXX");\n',
+  'luaL_newmetatable(__ls, reg_str);\n',
   'luaL_setfuncs(__ls, XXX_meta, 0);\n',
   'lua_pushliteral(__ls, "__index");\n',
   'lua_pushvalue(__ls, -3);\n',
@@ -74,11 +74,11 @@ TABLE_REGISTER_G =  ['int XXX_register(lua_State* __ls) {\n',
   'lua_setglobal(__ls , "XXX");\n'
   'return 0;\n}\n']
 # table register function for anonymous lua tables
-TABLE_REGISTER =  ['int XXX_register(lua_State* __ls) {\n',
+TABLE_REGISTER =  ['int XXX_register(lua_State* __ls, char* reg_str) {\n',
   'lua_checkstack(__ls, 4);\n'
   'lua_newtable(__ls);\n',
   'luaL_setfuncs(__ls, XXX_methods, 0);\n',
-  'luaL_newmetatable(__ls, "XXX");\n',
+  'luaL_newmetatable(__ls, reg_str);\n',
   'luaL_setfuncs(__ls, XXX_methods, 0);\n',
   'luaL_setfuncs(__ls, XXX_meta, 0);\n',
   'lua_pushliteral(__ls, "__index");\n',
@@ -371,6 +371,7 @@ class Argparser(object):
         parser.add_argument("--singlefile", action="store_true", help="should all the generated code be added to a single file", default=False)
         parser.add_argument("--makemacro", action="store_true", help="generate a makefile containing all objects in a macro to be included by another makefile", default=False)
         parser.add_argument("--anon", action="store_true", help="generate anonymous lua tables if true, global if false", default=True)
+        parser.add_argument("--useuuid", action="store_true", help="use uuids to register metatables instead of the name of the metatable", default=True)
         parser.add_argument("--outfile", type=str, help="name of the output file if signlefile is set, ignored otherwise")
         parser.add_argument("--headeraggr", type=str, help="header aggregate file name")
         parser.add_argument("--lualibpath", type=str, help="where the lua module file will be placed")
@@ -599,6 +600,17 @@ class TbgParser(object):
         c_source.write(PUSH_ARGS[0].replace("XXX", struct_name))
         c_source.write("if (_st == NULL) return 0;\n")
         c_source.write("\tlua_checkstack(__ls, " + repr(len(field_names)) + ");\n")
+        if not field_names:
+            print(struct_name)
+            orig_node = get_def_node(struct_name, self.elems)
+            lua_type = orig_node.attrib["luatype"]
+            field_name = orig_node.attrib["name"]
+            if lua_type == "integer": dummy = "\tlua_pushinteger(__ls, _st->"+field_name+");\n"
+            elif lua_type == "number": dummy = "\tlua_pushnumber(__ls, _st->"+field_name+");\n"
+            elif lua_type == "string": dummy = "\tlua_pushstring(__ls, _st->"+field_name+");\n"
+            elif lua_type == "boolean": dummy = "\tlua_pushboolean(__ls, _st->"+field_name+");\n"
+            else: print("badf lua type")
+            c_source.write(dummy)
         for field_name, lua_type in zip(field_names, lua_types):
             if lua_type == "integer": dummy = "\tlua_pushinteger(__ls, _st->"+field_name+");\n"
             elif lua_type == "lightuserdata": dummy = "\tlua_pushlightuserdata(__ls, _st->"+field_name+");\n"
@@ -826,7 +838,8 @@ class TbgParser(object):
                 else:
                     dummy = "if (!lua_checkstack(__ls, 3)) {printf(\"error\"\n);return 0;}\n"
                     dummy += "int table_length = lua_rawlen(__ls, 2);\nfree(dummy->"+field_name+");\n"
-                    dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ ")*table_length,1);\n"
+                    #dummy += "dummy->" +field_name+ "=calloc(sizeof(" +type_replacement+ ")*table_length,1);\n"
+                    dummy += "dummy->" +field_name+ "=lua_newuserdata(__ls, sizeof(" +type_replacement+ ")*table_length);\n"
                     dummy += "for (int i = 1; i <= table_length; ++i) {\n lua_rawgeti(__ls, 2, i);\n"
                     real_type = node.attrib["type"]
                     real_type_string = lua_type_resolver(real_type)
@@ -928,7 +941,7 @@ class TbgParser(object):
         c_source.write(REGISTER_META[1])
         c_source.write("\n")
 
-    def register_table(self, c_source, struct_name):
+    def register_table(self, c_source, struct_name, length):
         # if anon tables were selected
         if self.argparser.args.anon:
             for line in TABLE_REGISTER:
@@ -1089,7 +1102,7 @@ class TbgParser(object):
             self.setter(c_source, struct_name, field_names, field_types, lua_types)
             self.register_table_methods(c_source, struct_name, field_names)
             self.register_table_meta(c_source, struct_name)
-            self.register_table(c_source, struct_name)
+            self.register_table(c_source, struct_name, len(self.struct_names))
             self.end(c_source, True)
             if not self.argparser.args.singlefile: c_source.close()
             # header file
@@ -1103,7 +1116,7 @@ class TbgParser(object):
                 h_source.write(GETTER_GEN[0].replace("XXX", struct_name).replace("YYY", field_name).replace(" {\n", ";\n"))
             for field_name, lua_type in zip(field_names, lua_types):
                 h_source.write(SETTER_GEN[0].replace("XXX", struct_name).replace("YYY", field_name).replace(" {\n", ";\n"))
-            table_reg_list.append(struct_name + "_register(__ls);\n")
+            table_reg_list.append(struct_name + '_register(__ls,"'+struct_name+'");\n')
             h_source.write(TABLE_REGISTER[0].replace("XXX", struct_name).replace(" {\n", ";\n"))
             self.end(h_source, False)
             # docs
@@ -1129,6 +1142,7 @@ class TbgParser(object):
                 aggr_header_h.write("#include " + '"' + item + '"\n')
             aggr_header.write("#include " + '".' + dummy + '"\n')
             aggr_header.write("\n")
+            aggr_header.write("#pragma weak reg_tablegen_tables_"+self.argparser.args.name + "\n")
             aggr_header.write("void reg_tablegen_tables_"+self.argparser.args.name+"(lua_State* __ls) {\n")
             aggr_header_h.write("void reg_tablegen_tables_"+self.argparser.args.name+"(lua_State* __ls);\n")
             for func_sig in table_reg_list:
