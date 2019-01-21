@@ -601,7 +601,6 @@ class TbgParser(object):
         c_source.write("if (_st == NULL) return 0;\n")
         c_source.write("\tlua_checkstack(__ls, " + repr(len(field_names)) + ");\n")
         if not field_names:
-            print(struct_name)
             orig_node = get_def_node(struct_name, self.elems)
             lua_type = orig_node.attrib["luatype"]
             field_name = orig_node.attrib["name"]
@@ -671,6 +670,14 @@ class TbgParser(object):
         rev_counter = -len(field_types)
         c_source.write(NEW[0].replace("XXX", struct_name))
         c_source.write("\tlua_checkstack(__ls, " + repr(len(field_names)) + ");\n")
+        if not field_names:
+            orig_node = get_def_node(struct_name, self.elems)
+            lua_type = orig_node.attrib["luatype"]
+            field_name = orig_node.attrib["name"]
+            field_type = orig_node.attrib["type"]
+            if lua_type == "integer": dummy = "\t"+simple_type_resovler(field_type) +" "+field_name +"_s"+" = "+"luaL_optinteger(__ls,-1,0);\n"
+            elif lua_type == "string":dummy = "\t"+simple_type_resovler(field_type) +" "+field_name+" = "+"lua_tostring(__ls,-1,0);\n"
+            c_source.write(dummy)
         for lua_type, field_name, field_type in zip(lua_types, field_names, field_types):
             parent = get_def_node(struct_name, self.elems)
             child = get_def_node(field_name, self.elems)
@@ -727,6 +734,12 @@ class TbgParser(object):
         c_source.write(NEW[2].replace("XXX", struct_name))
         for field_name in field_names:
             c_source.write("\tdummy->" + field_name + " = " + field_name + ";\n")
+        if not field_names:
+            orig_node = get_def_node(struct_name, self.elems)
+            lua_type = orig_node.attrib["luatype"]
+            field_name = orig_node.attrib["name"]
+            field_type = orig_node.attrib["type"]
+            c_source.write("\tdummy->" + field_name + " = " + field_name + "_s"  + ";\n")
         c_source.write(NEW[3].replace("XXX", struct_name))
         c_source.write("\n")
 
