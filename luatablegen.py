@@ -662,7 +662,10 @@ class TbgParser(object):
                 sys.exit(1)
             c_source.write(dummy)
             dummy = str()
-        c_source.write(PUSH_ARGS[2].replace("NNN", repr(len(field_names))))
+        if not field_names:
+            c_source.write(PUSH_ARGS[2].replace("NNN", "1"))
+        else:
+            c_source.write(PUSH_ARGS[2].replace("NNN", repr(len(field_names))))
         c_source.write("\n")
 
     def new(self, c_source, struct_name, field_types, field_names, lua_types):
