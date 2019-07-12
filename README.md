@@ -1,4 +1,6 @@
 # luatablegen
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fbloodstalker%2Fluatablegen.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fbloodstalker%2Fluatablegen?ref=badge_shield)
+
 
 `luatablegen` takes a list of C structures and generates lua tables in C.<br/>
 The input is in the form of a JSON file that describes the C structure and the Lua types you want.<br/>
@@ -50,3 +52,7 @@ The list of the projects that use luatablegen:<br/>
 ## TODO
 * fields should be able to reference each other.<br/>
 * add more options for the table fileds.<br/>
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fbloodstalker%2Fluatablegen.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fbloodstalker%2Fluatablegen?ref=badge_large)
